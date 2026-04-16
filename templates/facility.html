@@ -1,0 +1,305 @@
+{% extends 'base.html' %}
+{% block title %}{{ fac['name'] }} – {{ year }}{% endblock %}
+{% block content %}
+
+{% if saved %}
+<div class="alert alert-success alert-dismissible fade show">
+  <i class="bi bi-check-circle-fill"></i> تم حفظ البيانات بنجاح لعام {{ year }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<div class="d-flex align-items-center gap-3 mb-3">
+  <a href="/" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-right"></i> رجوع</a>
+  <div>
+    <h5 class="mb-0"><i class="bi bi-hospital-fill text-primary"></i> {{ fac['name'] }}</h5>
+    <small class="text-muted">{{ fac['governorate'] }} | {{ fac['type'] }} | {{ fac['provider'] }}</small>
+  </div>
+  <div class="ms-auto d-flex gap-2">
+    <a href="/export/{{ fac['id'] }}?year={{ year }}" class="btn btn-success btn-sm">
+      <i class="bi bi-file-earmark-excel"></i> تصدير Excel
+    </a>
+  </div>
+</div>
+
+<form method="post">
+<!-- ── Year & Target Population ── -->
+<div class="card mb-3 shadow-sm">
+  <div class="card-header section-header">
+    <i class="bi bi-people-fill"></i> السنة والسكان المستهدفون
+  </div>
+  <div class="card-body">
+    <div class="row g-3 align-items-end">
+      <div class="col-md-2">
+        <label class="form-label fw-bold">السنة</label>
+        <select name="year" id="yearSel" class="form-select">
+          {% for y in range(2020, 2031) %}
+            <option value="{{ y }}" {% if y==year %}selected{% endif %}>{{ y }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label fw-bold">إجمالي السكان (Catchment Pop.)</label>
+        <input type="number" name="catchment_pop" class="form-control"
+               value="{{ tp['catchment_pop'] if tp else 0 }}" min="0" id="catchPop">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label fw-bold">% الرضّع الناجين (SI %)</label>
+        <input type="number" name="si_percent" class="form-control"
+               value="{{ tp['si_percent'] if tp else 3.2 }}" step="0.1" min="0" max="100" id="siPct">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label fw-bold">الهدف (أقل من سنة)</label>
+        <div class="form-control bg-light fw-bold text-primary" id="targetDisplay">
+          {% if tp %}{{ (tp['catchment_pop'] * tp['si_percent'] / 100)|int }}{% else %}0{% endif %}
+        </div>
+      </div>
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-primary w-100">
+          <i class="bi bi-save2-fill"></i> حفظ البيانات
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Monthly Data Table ── -->
+<div class="card shadow-sm mb-3">
+  <div class="card-header section-header d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-table"></i> البيانات الشهرية – الجرعات المعطاة</span>
+    <small class="text-white opacity-75">الخلايا الزرقاء = إدخال | الخلايا الرمادية = محسوبة تلقائياً</small>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-bordered table-sm mb-0 monthly-table" id="mainTable">
+      <thead>
+        <tr class="table-header-row">
+          <th rowspan="2" class="antigen-col">اللقاح / المستضد</th>
+          {% for m in months %}
+          <th colspan="2" class="text-center month-header">{{ m }}</th>
+          {% endfor %}
+          <th rowspan="2" class="text-center annual-col">المجموع السنوي</th>
+          <th rowspan="2" class="text-center cov-col">التغطية %</th>
+        </tr>
+        <tr class="table-subheader-row">
+          {% for m in months %}
+          <th class="text-center subh">الشهر</th>
+          <th class="text-center subh">تراكمي</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for ag in antigens %}
+        {% set row_class = 'row-blue' if loop.index is odd else 'row-yellow' %}
+        <tr class="{{ row_class }}" data-antigen="{{ ag['key'] }}">
+          <td class="antigen-label fw-semibold">{{ ag['label'] }}</td>
+          {% set monthly_vals = [] %}
+          {% for m in range(1, 13) %}
+          {% set val = data.get((ag['key'], m), 0) %}
+          {% set _ = monthly_vals.append(val) %}
+          <td>
+            <input type="number" name="{{ ag['key'] }}_{{ m }}"
+                   class="form-control form-control-sm monthly-input text-center p-1"
+                   value="{{ val }}" min="0"
+                   data-antigen="{{ ag['key'] }}" data-month="{{ m }}">
+          </td>
+          <td class="cum-cell text-center fw-semibold" id="cum_{{ ag['key'] }}_{{ m }}">
+            {{ monthly_vals | sum }}
+          </td>
+          {% endfor %}
+          <td class="text-center fw-bold annual-cell" id="ann_{{ ag['key'] }}">
+            {{ data.values() | sum if false else (monthly_vals | sum) }}
+          </td>
+          <td class="text-center cov-cell" id="cov_{{ ag['key'] }}">–</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── Drop-out Rates ── -->
+<div class="card shadow-sm mb-3">
+  <div class="card-header section-header">
+    <i class="bi bi-graph-down-arrow"></i> معدلات التسرب (Drop-out Rates)
+    <small class="text-white opacity-75 me-3">معادلة: معدل التسرب % = (الجرعة الأولى − الجرعة الأخيرة) ÷ الجرعة الأولى × 100</small>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-bordered table-sm mb-0">
+      <thead>
+        <tr class="table-header-row">
+          <th class="antigen-col">المؤشر</th>
+          {% for m in months %}
+          <th class="text-center" colspan="1">{{ m }}</th>
+          {% endfor %}
+          <th class="text-center">السنوي</th>
+          <th class="text-center">التقييم</th>
+        </tr>
+      </thead>
+      <tbody id="dropoutBody">
+        {% for label, num_key, den_key in dropouts %}
+        {% set row_class = 'row-blue' if loop.index is odd else 'row-yellow' %}
+        <tr class="{{ row_class }}" data-num="{{ num_key }}" data-den="{{ den_key }}">
+          <td class="antigen-label fw-semibold">{{ label }}</td>
+          {% for m in range(1, 13) %}
+          <td class="text-center do-month-cell" id="do_{{ loop.index0 }}_{{ m }}">–</td>
+          {% endfor %}
+          <td class="text-center fw-bold" id="do_ann_{{ loop.index0 }}">–</td>
+          <td class="text-center" id="do_status_{{ loop.index0 }}">–</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── Achievement Legend ── -->
+<div class="card shadow-sm mb-3">
+  <div class="card-header section-header"><i class="bi bi-bar-chart-fill"></i> مفتاح مستوى التغطية</div>
+  <div class="card-body d-flex gap-2 flex-wrap">
+    <span class="legend-badge" style="background:#00B050;color:#fff">≥ 100% ممتاز</span>
+    <span class="legend-badge" style="background:#92D050">≥ 75% جيد</span>
+    <span class="legend-badge" style="background:#FFEB84">≥ 50% مقبول</span>
+    <span class="legend-badge" style="background:#FF9900;color:#fff">≥ 45% ضعيف</span>
+    <span class="legend-badge" style="background:#FF0000;color:#fff">< 45% حرج</span>
+  </div>
+</div>
+
+<div class="text-end mb-4">
+  <button type="submit" class="btn btn-primary btn-lg px-5">
+    <i class="bi bi-save2-fill"></i> حفظ جميع البيانات
+  </button>
+</div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const TARGET_CELL = document.getElementById('targetDisplay');
+const CATCH_INPUT = document.getElementById('catchPop');
+const SI_INPUT    = document.getElementById('siPct');
+
+function recalcTarget() {
+  const t = Math.round((parseFloat(CATCH_INPUT.value)||0) * (parseFloat(SI_INPUT.value)||0) / 100);
+  TARGET_CELL.textContent = t.toLocaleString();
+  return t;
+}
+CATCH_INPUT.addEventListener('input', () => { recalcTarget(); recalcAll(); });
+SI_INPUT.addEventListener('input',    () => { recalcTarget(); recalcAll(); });
+
+// Collect all monthly inputs into a structure
+function getMonthlyData() {
+  const d = {};
+  document.querySelectorAll('.monthly-input').forEach(inp => {
+    const ag = inp.dataset.antigen, m = parseInt(inp.dataset.month);
+    if (!d[ag]) d[ag] = {};
+    d[ag][m] = parseInt(inp.value) || 0;
+  });
+  return d;
+}
+
+function recalcRow(ag, d) {
+  let cum = 0, annual = 0;
+  for (let m = 1; m <= 12; m++) {
+    const v = (d[ag] && d[ag][m]) || 0;
+    cum += v;
+    annual += v;
+    const el = document.getElementById(`cum_${ag}_${m}`);
+    if (el) el.textContent = cum.toLocaleString();
+  }
+  const annEl = document.getElementById(`ann_${ag}`);
+  if (annEl) annEl.textContent = annual.toLocaleString();
+  return annual;
+}
+
+function recalcAll() {
+  const d = getMonthlyData();
+  const annuals = {};
+  const cumByMonth = {};
+
+  // Per-antigen cumulative values by month
+  document.querySelectorAll('#mainTable tbody tr').forEach(tr => {
+    const ag = tr.dataset.antigen;
+    if (!ag) return;
+    let cum = 0;
+    cumByMonth[ag] = {};
+    for (let m = 1; m <= 12; m++) {
+      cum += (d[ag] && d[ag][m]) || 0;
+      cumByMonth[ag][m] = cum;
+      const el = document.getElementById(`cum_${ag}_${m}`);
+      if (el) el.textContent = cum.toLocaleString();
+    }
+    annuals[ag] = cum;
+    const annEl = document.getElementById(`ann_${ag}`);
+    if (annEl) annEl.textContent = cum.toLocaleString();
+
+    const target = recalcTarget();
+    const covEl = document.getElementById(`cov_${ag}`);
+    if (covEl && target > 0) {
+      const pct = (cum / target * 100).toFixed(1);
+      covEl.textContent = pct + '%';
+      covEl.className = 'text-center cov-cell ' + coverageClass(pct);
+    }
+  });
+
+  // Drop-out rows
+  document.querySelectorAll('#dropoutBody tr').forEach((tr, i) => {
+    const numKey = tr.dataset.num, denKey = tr.dataset.den;
+    if (!numKey || !denKey) return;
+
+    // Monthly dropout using cumulative
+    for (let m = 1; m <= 12; m++) {
+      const numCum = (cumByMonth[numKey] && cumByMonth[numKey][m]) || 0;
+      const denCum = (cumByMonth[denKey] && cumByMonth[denKey][m]) || 0;
+      const el = document.getElementById(`do_${i}_${m}`);
+      if (el) {
+        if (numCum > 0) {
+          const pct = ((numCum - denCum) / numCum * 100).toFixed(1);
+          el.textContent = pct + '%';
+          el.className = 'text-center do-month-cell ' + dropoutClass(pct);
+        } else {
+          el.textContent = '–';
+        }
+      }
+    }
+
+    // Annual dropout
+    const numAnn = annuals[numKey] || 0, denAnn = annuals[denKey] || 0;
+    const annEl = document.getElementById(`do_ann_${i}`);
+    const stEl  = document.getElementById(`do_status_${i}`);
+    if (annEl) {
+      if (numAnn > 0) {
+        const pct = ((numAnn - denAnn) / numAnn * 100).toFixed(1);
+        annEl.textContent = pct + '%';
+        annEl.className = 'text-center fw-bold ' + dropoutClass(pct);
+        if (stEl) {
+          stEl.textContent = parseFloat(pct) > 10 ? '⚠ مرتفع' : '✓ مقبول';
+          stEl.className = 'text-center fw-bold ' + (parseFloat(pct) > 10 ? 'text-danger' : 'text-success');
+        }
+      } else {
+        annEl.textContent = '–';
+        if (stEl) stEl.textContent = '–';
+      }
+    }
+  });
+}
+
+function coverageClass(pct) {
+  pct = parseFloat(pct);
+  if (pct >= 100) return 'cov-excellent';
+  if (pct >= 75)  return 'cov-good';
+  if (pct >= 50)  return 'cov-fair';
+  if (pct >= 45)  return 'cov-weak';
+  return 'cov-critical';
+}
+function dropoutClass(pct) {
+  return parseFloat(pct) > 10 ? 'text-danger' : (parseFloat(pct) > 5 ? 'text-warning' : 'text-success');
+}
+
+document.querySelectorAll('.monthly-input').forEach(inp => {
+  inp.addEventListener('input', recalcAll);
+});
+
+// Initial calculation on page load
+recalcAll();
+</script>
+{% endblock %}
