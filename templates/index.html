@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+{% block title %}قائمة المؤسسات الصحية{% endblock %}
+{% block content %}
+<div class="row mb-3 align-items-end">
+  <div class="col-md-4">
+    <h4 class="mb-0"><i class="bi bi-hospital"></i> المؤسسات الصحية</h4>
+    <small class="text-muted">{{ facilities|length }} مؤسسة</small>
+  </div>
+  <div class="col-md-8">
+    <form class="row g-2" method="get">
+      <div class="col-auto">
+        <label class="col-form-label fw-bold">السنة:</label>
+      </div>
+      <div class="col-auto">
+        <select name="year" class="form-select form-select-sm" onchange="this.form.submit()">
+          {% for y in range(2020, 2031) %}
+            <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-auto">
+        <select name="governorate" class="form-select form-select-sm" onchange="this.form.submit()">
+          <option value="">كل المحافظات</option>
+          {% for g in governorates %}
+            <option value="{{ g[0] }}" {% if g[0]==sel_gov %}selected{% endif %}>{{ g[0] }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col">
+        <input type="text" name="search" class="form-control form-control-sm"
+               placeholder="بحث باسم المؤسسة..." value="{{ search }}">
+      </div>
+      <div class="col-auto">
+        <button class="btn btn-primary btn-sm"><i class="bi bi-search"></i></button>
+        <a href="/?year={{ year }}" class="btn btn-outline-secondary btn-sm">مسح</a>
+      </div>
+      <div class="col-auto">
+        <a href="/export_all?year={{ year }}" class="btn btn-success btn-sm">
+          <i class="bi bi-file-earmark-excel"></i> تصدير الكل ({{ year }})
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% set gov_groups = {} %}
+{% for fac in facilities %}
+  {% set _ = gov_groups.update({fac['governorate']: gov_groups.get(fac['governorate'], []) + [fac]}) %}
+{% endfor %}
+
+{% for gov, facs in gov_groups.items() %}
+<div class="card mb-3 shadow-sm">
+  <div class="card-header gov-header">
+    <i class="bi bi-geo-alt-fill"></i> {{ gov }}
+    <span class="badge bg-light text-dark ms-2">{{ facs|length }}</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover table-sm mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>#</th>
+          <th>اسم المؤسسة</th>
+          <th>النوع</th>
+          <th>المزود</th>
+          <th>الحالة</th>
+          <th>إجراء</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for fac in facs %}
+        <tr>
+          <td class="text-muted">{{ fac['sno'] or loop.index }}</td>
+          <td class="fw-semibold">{{ fac['name'] }}</td>
+          <td><span class="badge bg-info text-dark">{{ fac['type'] }}</span></td>
+          <td>{{ fac['provider'] }}</td>
+          <td>
+            {% if fac['status'] == 'Functional' %}
+              <span class="badge bg-success">فعّال</span>
+            {% else %}
+              <span class="badge bg-secondary">{{ fac['status'] }}</span>
+            {% endif %}
+          </td>
+          <td>
+            <a href="/facility/{{ fac['id'] }}?year={{ year }}" class="btn btn-primary btn-xs">
+              <i class="bi bi-pencil-square"></i> إدخال بيانات
+            </a>
+            <a href="/export/{{ fac['id'] }}?year={{ year }}" class="btn btn-success btn-xs">
+              <i class="bi bi-file-earmark-excel"></i> Excel
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="alert alert-warning">لا توجد مؤسسات. <a href="/reimport">استورد من Excel</a></div>
+{% endfor %}
+{% endblock %}

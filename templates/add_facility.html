@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% block title %}إضافة مؤسسة صحية{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-6">
+    <div class="card shadow-sm">
+      <div class="card-header section-header">
+        <i class="bi bi-plus-circle-fill"></i> إضافة مؤسسة صحية جديدة
+      </div>
+      <div class="card-body">
+        <form method="post">
+          <div class="mb-3">
+            <label class="form-label fw-bold">اسم المؤسسة *</label>
+            <input type="text" name="name" class="form-control" required placeholder="مثال: Al Saftawi PHC">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">المحافظة *</label>
+            <select name="governorate" class="form-select" required>
+              <option value="">اختر المحافظة</option>
+              <option value="North Gaza">North Gaza</option>
+              <option value="Gaza City">Gaza City</option>
+              <option value="Dier Elbalah">Dier Elbalah</option>
+              <option value="KhanYounis">KhanYounis</option>
+              <option value="Rafah">Rafah</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">نوع المؤسسة</label>
+            <select name="type" class="form-select">
+              <option value="PHC">PHC – مركز صحي</option>
+              <option value="Medical Point">Medical Point – نقطة طبية</option>
+              <option value="Hospital">Hospital – مستشفى</option>
+              <option value="Health Center">Health Center</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">المزود / الجهة</label>
+            <select name="provider" class="form-select">
+              <option value="MOH">MOH – وزارة الصحة</option>
+              <option value="UNRWA">UNRWA – الأونروا</option>
+              <option value="PRCS">PRCS – الهلال الأحمر</option>
+              <option value="IMC">IMC</option>
+              <option value="MSF">MSF</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-save"></i> حفظ
+            </button>
+            <a href="/" class="btn btn-outline-secondary">إلغاء</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

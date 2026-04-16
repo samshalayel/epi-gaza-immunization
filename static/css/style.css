@@ -1,0 +1,111 @@
+body { background: #f0f4f8; font-family: 'Arial', sans-serif; }
+
+.navbar { box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+
+.gov-header {
+  background: linear-gradient(135deg, #1FA2C8, #0d7fa5);
+  color: white;
+  font-weight: bold;
+  font-size: 1rem;
+  padding: 0.6rem 1rem;
+}
+
+.section-header {
+  background: linear-gradient(135deg, #1FA2C8, #0d7fa5);
+  color: white;
+  font-weight: bold;
+  padding: 0.6rem 1rem;
+}
+
+/* Facility list table */
+.btn-xs {
+  padding: 2px 8px;
+  font-size: 0.78rem;
+  border-radius: 4px;
+}
+.btn-xs.btn-primary  { background: #1FA2C8; border-color: #1FA2C8; color:#fff; }
+.btn-xs.btn-success  { background: #217346; border-color: #217346; color:#fff; }
+.btn-xs:hover { opacity: 0.85; }
+
+/* Monthly table */
+.monthly-table { font-size: 0.82rem; min-width: 1400px; }
+
+.antigen-col  { min-width: 150px; background: #f8f9fa !important; position: sticky; right: 0; z-index: 2; border-left: 2px solid #1FA2C8 !important; }
+.antigen-label { background: inherit; position: sticky; right: 0; z-index: 1; border-left: 2px solid #1FA2C8 !important; }
+.annual-col { min-width: 90px; background: #e8f4fd !important; }
+.cov-col    { min-width: 90px; }
+
+.table-header-row th {
+  background: #1FA2C8 !important;
+  color: white !important;
+  text-align: center;
+  vertical-align: middle;
+  font-size: 0.82rem;
+  border-color: #0d7fa5 !important;
+}
+.table-subheader-row th.subh {
+  background: #3ABCD8 !important;
+  color: white !important;
+  text-align: center;
+  font-size: 0.75rem;
+  padding: 2px 4px;
+}
+
+.row-blue  { background: #EBF5FB; }
+.row-yellow{ background: #FEFDE7; }
+.row-blue:hover, .row-yellow:hover { filter: brightness(0.96); }
+
+.monthly-input {
+  width: 58px !important;
+  min-width: 50px;
+  padding: 2px 4px !important;
+  font-size: 0.82rem !important;
+  border: 1px solid #90CAF9 !important;
+  background: white !important;
+  border-radius: 3px !important;
+}
+.monthly-input:focus { border-color: #1FA2C8 !important; box-shadow: 0 0 0 2px rgba(31,162,200,0.2) !important; }
+
+.cum-cell {
+  background: rgba(31,162,200,0.08) !important;
+  color: #0d7fa5;
+  font-size: 0.8rem;
+  min-width: 52px;
+}
+
+.annual-cell { color: #1a5276; font-size: 0.85rem; }
+
+/* Coverage colors */
+.cov-excellent { background: #C6EFCE !important; color: #276221 !important; font-weight: bold; }
+.cov-good      { background: #EBFADB !important; color: #4a7c20 !important; font-weight: bold; }
+.cov-fair      { background: #FFEB84 !important; color: #7d6608 !important; font-weight: bold; }
+.cov-weak      { background: #FFD580 !important; color: #7e5109 !important; font-weight: bold; }
+.cov-critical  { background: #FFC7CE !important; color: #9b1c1c !important; font-weight: bold; }
+
+/* Legend */
+.legend-badge {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-weight: bold;
+  font-size: 0.9rem;
+  border: 1px solid rgba(0,0,0,0.15);
+}
+
+/* Month header */
+.month-header { font-size: 0.82rem !important; padding: 4px !important; }
+
+/* Card */
+.card { border: none; border-radius: 8px; }
+.card-header { border-radius: 8px 8px 0 0 !important; }
+
+/* Scrollable table wrapper */
+.table-responsive { border-radius: 0 0 8px 8px; }
+
+/* RTL fixes */
+[dir="rtl"] .table { text-align: right; }
+[dir="rtl"] .antigen-col, [dir="rtl"] .antigen-label {
+  right: auto; left: 0;
+  border-left: none !important;
+  border-right: 2px solid #1FA2C8 !important;
+}
