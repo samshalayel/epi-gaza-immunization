@@ -238,6 +238,8 @@ function renderPage() {
 
   document.getElementById('pageContent').innerHTML = html;
   recalcAll();
+  // Charts need a tick after DOM paint to get correct canvas dimensions
+  setTimeout(renderCharts, 50);
 }
 
 function recalcTarget() {
