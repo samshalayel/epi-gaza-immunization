@@ -2,18 +2,18 @@
 
 // ── Style helpers ──────────────────────────────────────────────────────────
 const S = {
-  border: { top:{style:'thin',color:{rgb:'888888'}}, bottom:{style:'thin',color:{rgb:'888888'}},
-            left:{style:'thin',color:{rgb:'888888'}}, right:{style:'thin',color:{rgb:'888888'}} },
-  hdrFill:  { patternType:'solid', fgColor:{rgb:'1FA2C8'} },
-  hdr2Fill: { patternType:'solid', fgColor:{rgb:'3ABCD8'} },
-  blueFill: { patternType:'solid', fgColor:{rgb:'D0E8FF'} },
-  yelFill:  { patternType:'solid', fgColor:{rgb:'FFF0CC'} },
-  grnFill:  { patternType:'solid', fgColor:{rgb:'C6EFCE'} },
-  redFill:  { patternType:'solid', fgColor:{rgb:'FFC7CE'} },
-  whtFont:  { name:'Arial', sz:9, bold:true, color:{rgb:'FFFFFF'} },
-  bldFont:  { name:'Arial', sz:9, bold:true, color:{rgb:'000000'} },
+  border: { top:{style:'thin',color:{rgb:'FF888888'}}, bottom:{style:'thin',color:{rgb:'FF888888'}},
+            left:{style:'thin',color:{rgb:'FF888888'}}, right:{style:'thin',color:{rgb:'FF888888'}} },
+  hdrFill:  { patternType:'solid', fgColor:{rgb:'FF1FA2C8'} },
+  hdr2Fill: { patternType:'solid', fgColor:{rgb:'FF3ABCD8'} },
+  blueFill: { patternType:'solid', fgColor:{rgb:'FFD0E8FF'} },
+  yelFill:  { patternType:'solid', fgColor:{rgb:'FFFFF0CC'} },
+  grnFill:  { patternType:'solid', fgColor:{rgb:'FFC6EFCE'} },
+  redFill:  { patternType:'solid', fgColor:{rgb:'FFFFC7CE'} },
+  whtFont:  { name:'Arial', sz:9, bold:true, color:{rgb:'FFFFFFFF'} },
+  bldFont:  { name:'Arial', sz:9, bold:true, color:{rgb:'FF000000'} },
   nrmFont:  { name:'Arial', sz:9 },
-  itaFont:  { name:'Arial', sz:9, italic:true, color:{rgb:'0D7FA5'} },
+  itaFont:  { name:'Arial', sz:9, italic:true, color:{rgb:'FF0D7FA5'} },
   ctr:      { horizontal:'center', vertical:'center', wrapText:true },
   lft:      { horizontal:'left',   vertical:'center', wrapText:true },
 };
@@ -56,7 +56,7 @@ function buildSheet(fac, year, d) {
   // ── Row 0: Title ──────────────────────────────────────────────────────────
   ws[ec(0,0)] = mkCell(
     `Routine Immunization Monthly Monitoring  |  ${fac.name}  |  Year: ${year}`,
-    S.hdrFill, { name:'Arial', sz:12, bold:true, color:{rgb:'FFFFFF'} }, S.ctr
+    S.hdrFill, { name:'Arial', sz:12, bold:true, color:{rgb:'FFFFFFFF'} }, S.ctr
   );
   merges.push({ s:{r:0,c:0}, e:{r:0,c:LAST_COL} });
   for (let c = 1; c <= LAST_COL; c++) ws[ec(0,c)] = mkCell('', S.hdrFill, S.whtFont, S.ctr);
@@ -146,9 +146,9 @@ function buildSheet(fac, year, d) {
     if (target > 0) {
       const p = cov * 100;
       if (p >= 100) covFill = S.grnFill;
-      else if (p >= 75) covFill = { patternType:'solid', fgColor:{rgb:'EBFADB'} };
-      else if (p >= 50) covFill = { patternType:'solid', fgColor:{rgb:'FFEB84'} };
-      else if (p >= 45) covFill = { patternType:'solid', fgColor:{rgb:'FFD580'} };
+      else if (p >= 75) covFill = { patternType:'solid', fgColor:{rgb:'FFEBFADB'} };
+      else if (p >= 50) covFill = { patternType:'solid', fgColor:{rgb:'FFFFEB84'} };
+      else if (p >= 45) covFill = { patternType:'solid', fgColor:{rgb:'FFFFD580'} };
       else if (annual > 0) covFill = S.redFill;
     }
     ws[ec(r, COV_COL)] = mkCell(target > 0 ? cov : '', covFill, S.bldFont, S.ctr, '0.0%');
@@ -190,8 +190,8 @@ function buildSheet(fac, year, d) {
     if (nA > 0) {
       statusTxt  = annPct > 0.10 ? 'HIGH ⚠' : 'OK ✓';
       statusFill = annPct > 0.10
-        ? { patternType:'solid', fgColor:{rgb:'FFC7CE'} }
-        : { patternType:'solid', fgColor:{rgb:'C6EFCE'} };
+        ? { patternType:'solid', fgColor:{rgb:'FFFFC7CE'} }
+        : { patternType:'solid', fgColor:{rgb:'FFC6EFCE'} };
     }
     ws[ec(r, COV_COL)] = mkCell(statusTxt, statusFill, S.bldFont, S.ctr);
   });
@@ -204,16 +204,16 @@ function buildSheet(fac, year, d) {
   ws[ec(LEG_R,2)] = mkCell('', null, S.bldFont, S.ctr, null, {});
 
   const legends = [
-    [3,  '≥100%', '00B050', 'FFFFFF'],
-    [4,  '≥75%',  '92D050', '000000'],
-    [5,  '≥50%',  'FFEB84', '000000'],
-    [6,  '≥45%',  'FF9900', 'FFFFFF'],
-    [7,  '<45%',  'FF0000', 'FFFFFF'],
+    [3,  '≥100%', 'FF00B050', 'FFFFFFFF'],
+    [4,  '≥75%',  'FF92D050', 'FF000000'],
+    [5,  '≥50%',  'FFFFEB84', 'FF000000'],
+    [6,  '≥45%',  'FFFF9900', 'FFFFFFFF'],
+    [7,  '<45%',  'FFFF0000', 'FFFFFFFF'],
   ];
   legends.forEach(([c, lbl, bg, fg]) => {
     ws[ec(LEG_R,c)] = mkCell(lbl,
       { patternType:'solid', fgColor:{rgb:bg} },
-      { name:'Arial', sz:9, bold:true, color:{rgb:fg} },
+      { name:'Arial', sz:9, bold:true, color:{rgb:fg} },  // bg/fg already ARGB
       S.ctr
     );
   });
@@ -223,7 +223,7 @@ function buildSheet(fac, year, d) {
   ws[ec(NOTE_R,0)] = mkCell(
     'Formulas:  Drop-out # = First Dose − Last Dose  |  Drop-out % = Drop-out # ÷ First Dose × 100  |  Coverage % = Annual Doses ÷ Target × 100',
     null,
-    { name:'Arial', sz:8, italic:true, color:{rgb:'444444'} },
+    { name:'Arial', sz:8, italic:true, color:{rgb:'FF444444'} },
     S.lft, null, {}
   );
   merges.push({ s:{r:NOTE_R,c:0}, e:{r:NOTE_R,c:LAST_COL} });
@@ -248,7 +248,7 @@ function exportSingleFacility(fac, year) {
   const wb = XLSX.utils.book_new();
   const d  = JSON.parse(localStorage.getItem(`data_${fac.id}_${year}`) || '{}');
   XLSX.utils.book_append_sheet(wb, buildSheet(fac, year, d), truncSheet(fac.name));
-  XLSX.writeFile(wb, `EPI_${fac.name.replace(/[\/\\:*?"<>|]/g,'-')}_${year}.xlsx`);
+  XLSX.writeFile(wb, `EPI_${fac.name.replace(/[\/\\:*?"<>|]/g,'-')}_${year}.xlsx`, { cellStyles: true });
 }
 
 function exportAllFacilities(facilities, year) {
@@ -257,7 +257,7 @@ function exportAllFacilities(facilities, year) {
     const d = JSON.parse(localStorage.getItem(`data_${fac.id}_${year}`) || '{}');
     XLSX.utils.book_append_sheet(wb, buildSheet(fac, year, d), truncSheet(fac.name));
   });
-  XLSX.writeFile(wb, `EPI_All_Facilities_${year}.xlsx`);
+  XLSX.writeFile(wb, `EPI_All_Facilities_${year}.xlsx`, { cellStyles: true });
 }
 
 function truncSheet(name) {
