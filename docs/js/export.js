@@ -238,120 +238,22 @@ function buildSheet(fac, year, d, chartImages) {
   ];
   ws['!rows'] = [ { hpt:22 }, {}, {}, { hpt:18 }, { hpt:14 } ];
 
-  // ── Embed chart images ────────────────────────────────────────────────────
-  if (chartImages && chartImages[0] && chartImages[1]) {
-    const CHART1_ROW = NOTE_R + 2;
-    const CHART2_ROW = NOTE_R + 22;
-    ws['!images'] = [
-      { '!pos':{ r:CHART1_ROW, c:0, x:0, y:0, w:20, h:18 }, '!datatype':'base64', '!data': chartImages[0] },
-      { '!pos':{ r:CHART2_ROW, c:0, x:0, y:0, w:20, h:18 }, '!datatype':'base64', '!data': chartImages[1] },
-    ];
-    // Add chart title labels
-    ws[ec(CHART1_ROW-1, 0)] = mkCell('Monthly Cumulative vs Target', S.hdrFill, S.whtFont, S.lft);
-    merges.push({ s:{r:CHART1_ROW-1,c:0}, e:{r:CHART1_ROW-1,c:LAST_COL} });
-    for(let c=1;c<=LAST_COL;c++) ws[ec(CHART1_ROW-1,c)] = mkCell('', S.hdrFill, S.whtFont, S.ctr);
-
-    ws[ec(CHART2_ROW-1, 0)] = mkCell('Monthly Coverage Rate (%)', S.hdrFill, S.whtFont, S.lft);
-    merges.push({ s:{r:CHART2_ROW-1,c:0}, e:{r:CHART2_ROW-1,c:LAST_COL} });
-    for(let c=1;c<=LAST_COL;c++) ws[ec(CHART2_ROW-1,c)] = mkCell('', S.hdrFill, S.whtFont, S.ctr);
-
-    ws['!ref'] = XLSX.utils.encode_range({ s:{r:0,c:0}, e:{r:CHART2_ROW+18, c:LAST_COL} });
-  }
-
   return ws;
 }
 
-// ── Chart rendering ───────────────────────────────────────────────────────
-const CHART_AGS = [
-  {key:'BCG',    label:'BCG',    color:'#1FA2C8'},
-  {key:'Penta1', label:'Penta 1',color:'#E67E22'},
-  {key:'Penta3', label:'Penta 3',color:'#8E44AD'},
-  {key:'MR1',    label:'MR 1',   color:'#27AE60'},
-  {key:'MR2',    label:'MR 2',   color:'#E74C3C'},
-];
-
-function renderChartsToImages(d, target) {
-  if (typeof Chart === 'undefined') return Promise.resolve(null);
-
-  const monthly = {};
-  ANTIGENS.forEach(ag => {
-    monthly[ag.key] = {};
-    for (let m=1; m<=12; m++) monthly[ag.key][m] = d[`${ag.key}_${m}`] || 0;
-  });
-
-  const cumSeries = CHART_AGS.map(ag => {
-    let cum = 0;
-    return MONTHS.map((_,i) => { cum += monthly[ag.key][i+1]; return cum; });
-  });
-  const targetLine = MONTHS.map((_,i) => Math.round(target*(i+1)/12));
-  const covSeries  = cumSeries.map(s => s.map(v => target>0 ? parseFloat((v/target*100).toFixed(1)) : 0));
-
-  const mkCanvas = () => { const c=document.createElement('canvas'); c.width=1000; c.height=420; return c; };
-  const baseOpts = {
-    responsive:false, animation:false,
-    plugins:{ legend:{ position:'bottom', labels:{ font:{size:11}, padding:8 } } },
-    scales:{ x:{ grid:{color:'#eee'}, ticks:{font:{size:10}} } }
-  };
-
-  const c1 = mkCanvas();
-  const chart1 = new Chart(c1, {
-    type:'line',
-    data:{
-      labels: MONTHS,
-      datasets:[
-        ...CHART_AGS.map((ag,i) => ({ label:ag.label, data:cumSeries[i], borderColor:ag.color,
-          backgroundColor:ag.color+'22', borderWidth:2, pointRadius:3, tension:0.3, fill:false })),
-        ...(target>0 ? [{ label:'Target', data:targetLine, borderColor:'#888',
-          borderDash:[6,4], borderWidth:2, pointRadius:0, tension:0, fill:false }] : [])
-      ]
-    },
-    options:{ ...baseOpts, scales:{ ...baseOpts.scales,
-      y:{ beginAtZero:true, grid:{color:'#eee'}, title:{display:true,text:'Doses',font:{size:11}} }
-    }}
-  });
-
-  const c2 = mkCanvas();
-  const chart2 = new Chart(c2, {
-    type:'line',
-    data:{
-      labels: MONTHS,
-      datasets: CHART_AGS.map((ag,i) => ({ label:ag.label, data:covSeries[i], borderColor:ag.color,
-        backgroundColor:ag.color+'22', borderWidth:2, pointRadius:3, tension:0.3, fill:false }))
-    },
-    options:{ ...baseOpts, scales:{ ...baseOpts.scales,
-      y:{ beginAtZero:true, max:120, grid:{color:'#eee'},
-          title:{display:true,text:'Coverage %',font:{size:11}},
-          ticks:{callback:v=>v+'%',font:{size:10}} }
-    }}
-  });
-
-  return new Promise(resolve => {
-    setTimeout(() => {
-      const img1 = c1.toDataURL('image/png').split(',')[1];
-      const img2 = c2.toDataURL('image/png').split(',')[1];
-      chart1.destroy(); chart2.destroy();
-      resolve([img1, img2]);
-    }, 350);
-  });
-}
-
 // ── Public API ──────────────────────────────────────────────────────────────
-async function exportSingleFacility(fac, year) {
+function exportSingleFacility(fac, year) {
   const wb = XLSX.utils.book_new();
   const d  = JSON.parse(localStorage.getItem(`data_${fac.id}_${year}`) || '{}');
-  const target = Math.round((d.catchment_pop||0) * (d.si_percent!=null?d.si_percent:3.2) / 100);
-  const imgs = await renderChartsToImages(d, target);
-  XLSX.utils.book_append_sheet(wb, buildSheet(fac, year, d, imgs), truncSheet(fac.name));
+  XLSX.utils.book_append_sheet(wb, buildSheet(fac, year, d), truncSheet(fac.name));
   XLSX.writeFile(wb, `EPI_${fac.name.replace(/[\/\\:*?"<>|]/g,'-')}_${year}.xlsx`, { cellStyles:true });
 }
 
-async function exportAllFacilities(facilities, year) {
+function exportAllFacilities(facilities, year) {
   const wb = XLSX.utils.book_new();
   for (const fac of facilities) {
     const d = JSON.parse(localStorage.getItem(`data_${fac.id}_${year}`) || '{}');
-    const target = Math.round((d.catchment_pop||0) * (d.si_percent!=null?d.si_percent:3.2) / 100);
-    const imgs = await renderChartsToImages(d, target);
-    XLSX.utils.book_append_sheet(wb, buildSheet(fac, year, d, imgs), truncSheet(fac.name));
+    XLSX.utils.book_append_sheet(wb, buildSheet(fac, year, d), truncSheet(fac.name));
   }
   XLSX.writeFile(wb, `EPI_All_Facilities_${year}.xlsx`, { cellStyles:true });
 }

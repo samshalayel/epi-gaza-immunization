@@ -19,6 +19,9 @@
       <button class="btn btn-success btn-sm" onclick="exportCurrent()">
         <i class="bi bi-file-earmark-excel"></i> <span id="nav-export"></span>
       </button>
+      <button class="btn btn-outline-light btn-sm" onclick="window.print()">
+        <i class="bi bi-printer-fill"></i> <span id="nav-print"></span>
+      </button>
       <button class="btn btn-light btn-sm" onclick="saveData()">
         <i class="bi bi-save2-fill"></i> <span id="nav-save"></span>
       </button>
@@ -52,6 +55,7 @@ function applyNavTranslations() {
   applyDir();
   document.getElementById('nav-back').innerHTML    = `<i class="bi bi-arrow-${getLang()==='ar'?'right':'left'}"></i> ${t('back')}`;
   document.getElementById('nav-export').textContent = t('exportExcel');
+  document.getElementById('nav-print').textContent  = t('printPDF');
   document.getElementById('nav-save').textContent   = t('saveData');
   document.getElementById('langBtn').textContent    = t('langBtn');
   document.getElementById('toast-msg').textContent  = t('savedMsg');

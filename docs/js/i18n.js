@@ -33,6 +33,7 @@ const TRANSLATIONS = {
     // Facility page
     back:            'رجوع',
     exportExcel:     'تصدير Excel',
+    printPDF:        'طباعة / PDF',
     saveData:        'حفظ البيانات',
     savedMsg:        'تم الحفظ بنجاح',
     yearAndTarget:   'السنة والسكان المستهدفون',
@@ -99,6 +100,7 @@ const TRANSLATIONS = {
     // Facility page
     back:            'Back',
     exportExcel:     'Export Excel',
+    printPDF:        'Print / PDF',
     saveData:        'Save',
     savedMsg:        'Saved successfully',
     yearAndTarget:   'Year & Target Population',
