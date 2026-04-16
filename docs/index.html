@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>نظام متابعة التطعيم – قطاع غزة</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="css/style.css" rel="stylesheet">
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark" style="background:#1FA2C8">
+  <div class="container-fluid">
+    <span class="navbar-brand fw-bold">
+      <i class="bi bi-heart-pulse-fill me-2"></i>نظام متابعة التطعيم الروتيني – قطاع غزة
+    </span>
+    <div class="ms-auto d-flex gap-2 align-items-center">
+      <button class="btn btn-light btn-sm" onclick="showAddModal()">
+        <i class="bi bi-plus-circle"></i> إضافة مؤسسة
+      </button>
+      <button class="btn btn-outline-light btn-sm" onclick="exportAll()">
+        <i class="bi bi-file-earmark-excel"></i> تصدير الكل Excel
+      </button>
+    </div>
+  </div>
+</nav>
+
+<div class="container-fluid py-3">
+  <!-- Filters -->
+  <div class="row mb-3 align-items-end g-2">
+    <div class="col-md-3">
+      <h5 class="mb-0"><i class="bi bi-hospital"></i> المؤسسات الصحية</h5>
+      <small class="text-muted" id="facilityCount">جاري التحميل...</small>
+    </div>
+    <div class="col-auto">
+      <label class="form-label fw-bold mb-1">السنة</label>
+      <select id="yearSel" class="form-select form-select-sm" onchange="renderList()">
+        <script>
+          for(let y=2020;y<=2032;y++) document.write(`<option value="${y}"${y===2025?' selected':''}>${y}</option>`);
+        </script>
+      </select>
+    </div>
+    <div class="col-auto">
+      <label class="form-label fw-bold mb-1">المحافظة</label>
+      <select id="govSel" class="form-select form-select-sm" onchange="renderList()">
+        <option value="">الكل</option>
+      </select>
+    </div>
+    <div class="col">
+      <label class="form-label fw-bold mb-1">بحث</label>
+      <input type="text" id="searchInput" class="form-control form-control-sm"
+             placeholder="اسم المؤسسة..." oninput="renderList()">
+    </div>
+    <div class="col-auto pt-3">
+      <button class="btn btn-outline-secondary btn-sm" onclick="document.getElementById('searchInput').value='';renderList()">مسح</button>
+    </div>
+  </div>
+
+  <div id="listContainer"></div>
+</div>
+
+<!-- Add Facility Modal -->
+<div class="modal fade" id="addModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header" style="background:#1FA2C8;color:#fff">
+        <h5 class="modal-title">إضافة مؤسسة صحية جديدة</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-2">
+          <label class="form-label fw-bold">اسم المؤسسة *</label>
+          <input type="text" id="newName" class="form-control" placeholder="مثال: Al Saftawi PHC">
+        </div>
+        <div class="mb-2">
+          <label class="form-label fw-bold">المحافظة *</label>
+          <select id="newGov" class="form-select">
+            <option value="North Gaza">North Gaza</option>
+            <option value="Gaza City">Gaza City</option>
+            <option value="Dier Elbalah">Dier Elbalah</option>
+            <option value="KhanYounis">KhanYounis</option>
+            <option value="Rafah">Rafah</option>
+          </select>
+        </div>
+        <div class="mb-2">
+          <label class="form-label fw-bold">النوع</label>
+          <select id="newType" class="form-select">
+            <option value="PHC">PHC</option>
+            <option value="Medical Point">Medical Point</option>
+            <option value="Hospital">Hospital</option>
+          </select>
+        </div>
+        <div class="mb-2">
+          <label class="form-label fw-bold">المزود</label>
+          <select id="newProvider" class="form-select">
+            <option value="MOH">MOH</option>
+            <option value="UNRWA">UNRWA</option>
+            <option value="PRCS">PRCS</option>
+            <option value="IMC">IMC</option>
+            <option value="MSF">MSF</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="addFacility()"><i class="bi bi-save"></i> حفظ</button>
+        <button class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+<script src="js/data.js"></script>
+<script src="js/export.js"></script>
+<script>
+let facilities = [];
+
+async function loadFacilities() {
+  // Try localStorage first for added facilities
+  const stored = localStorage.getItem('facilities');
+  if (stored) {
+    facilities = JSON.parse(stored);
+  } else {
+    const res = await fetch('data/facilities.json');
+    facilities = await res.json();
+    localStorage.setItem('facilities', JSON.stringify(facilities));
+  }
+  // Populate governorate filter
+  const govs = [...new Set(facilities.map(f => f.governorate))].sort();
+  const sel = document.getElementById('govSel');
+  govs.forEach(g => sel.innerHTML += `<option value="${g}">${g}</option>`);
+  renderList();
+}
+
+function renderList() {
+  const year = document.getElementById('yearSel').value;
+  const gov  = document.getElementById('govSel').value;
+  const srch = document.getElementById('searchInput').value.toLowerCase();
+
+  const filtered = facilities.filter(f =>
+    (!gov  || f.governorate === gov) &&
+    (!srch || f.name.toLowerCase().includes(srch))
+  );
+
+  document.getElementById('facilityCount').textContent = `${filtered.length} مؤسسة`;
+
+  // Group by governorate
+  const groups = {};
+  filtered.forEach(f => {
+    if (!groups[f.governorate]) groups[f.governorate] = [];
+    groups[f.governorate].push(f);
+  });
+
+  let html = '';
+  for (const [g, facs] of Object.entries(groups)) {
+    html += `<div class="card mb-3 shadow-sm">
+      <div class="card-header gov-header">
+        <i class="bi bi-geo-alt-fill"></i> ${g}
+        <span class="badge bg-light text-dark ms-2">${facs.length}</span>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover table-sm mb-0">
+          <thead class="table-light">
+            <tr><th>#</th><th>اسم المؤسسة</th><th>النوع</th><th>المزود</th><th>الحالة</th><th>إجراء</th></tr>
+          </thead><tbody>`;
+    facs.forEach(f => {
+      const hasData = !!localStorage.getItem(`data_${f.id}_${year}`);
+      html += `<tr>
+        <td class="text-muted">${f.id}</td>
+        <td class="fw-semibold">${f.name}</td>
+        <td><span class="badge bg-info text-dark">${f.type}</span></td>
+        <td>${f.provider}</td>
+        <td><span class="badge bg-success">فعّال</span>${hasData?'<span class="badge bg-primary ms-1">✓ بيانات</span>':''}</td>
+        <td>
+          <a href="facility.html?id=${f.id}&year=${year}" class="btn btn-primary btn-xs">
+            <i class="bi bi-pencil-square"></i> إدخال بيانات
+          </a>
+          <button onclick="exportFacility(${f.id},'${year}')" class="btn btn-success btn-xs">
+            <i class="bi bi-file-earmark-excel"></i> Excel
+          </button>
+        </td>
+      </tr>`;
+    });
+    html += `</tbody></table></div></div>`;
+  }
+  if (!html) html = `<div class="alert alert-warning">لا توجد نتائج</div>`;
+  document.getElementById('listContainer').innerHTML = html;
+}
+
+function showAddModal() {
+  new bootstrap.Modal(document.getElementById('addModal')).show();
+}
+
+function addFacility() {
+  const name = document.getElementById('newName').value.trim();
+  if (!name) return alert('أدخل اسم المؤسسة');
+  const maxId = Math.max(...facilities.map(f => f.id), 100);
+  facilities.push({
+    id: maxId + 1,
+    governorate: document.getElementById('newGov').value,
+    name,
+    type: document.getElementById('newType').value,
+    provider: document.getElementById('newProvider').value,
+    status: 'Functional'
+  });
+  localStorage.setItem('facilities', JSON.stringify(facilities));
+  bootstrap.Modal.getInstance(document.getElementById('addModal')).hide();
+  renderList();
+}
+
+function exportAll() {
+  const year = document.getElementById('yearSel').value;
+  exportAllFacilities(facilities, year);
+}
+
+function exportFacility(id, year) {
+  const fac = facilities.find(f => f.id === id);
+  if (fac) exportSingleFacility(fac, year);
+}
+
+loadFacilities();
+</script>
+</body>
+</html>

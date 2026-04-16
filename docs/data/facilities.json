@@ -1,0 +1,290 @@
+[
+  {
+    "id": 1,
+    "governorate": "North Gaza",
+    "name": "Al Saftawi PHC",
+    "type": "PHC",
+    "provider": "UNRWA",
+    "status": "Functional"
+  },
+  {
+    "id": 2,
+    "governorate": "Gaza City",
+    "name": "Asma' Prep. Girls \"A\" & \"B\"",
+    "type": "Medical Point ",
+    "provider": "UNRWA",
+    "status": "Functional"
+  },
+  {
+    "id": 3,
+    "governorate": "Gaza City",
+    "name": "Rimal Elem. Co-ed \"A\" & \"B\"",
+    "type": "Medical Point ",
+    "provider": "UNRWA",
+    "status": "Functional"
+  },
+  {
+    "id": 4,
+    "governorate": "Gaza City",
+    "name": "Salah Eddin Prep. Boys \"B\" & \"A\"",
+    "type": "Medical Point ",
+    "provider": "UNRWA",
+    "status": "Functional"
+  },
+  {
+    "id": 5,
+    "governorate": "Gaza City",
+    "name": "Elsheikh Radwan PHC",
+    "type": "PHC",
+    "provider": "MOH",
+    "status": "Functional"
+  },
+  {
+    "id": 6,
+    "governorate": "Gaza City",
+    "name": "Al-Daraj PHC",
+    "type": "PHC",
+    "provider": "MOH",
+    "status": "Functional"
+  },
+  {
+    "id": 7,
+    "governorate": "Gaza City",
+    "name": "Masqat El-Sabra PHC",
+    "type": "PHC",
+    "provider": "MOH",
+    "status": "Functional"
+  },
+  {
+    "id": 8,
+    "governorate": "Gaza City",
+    "name": "Alsalam PHC",
+    "type": "PHC",
+    "provider": "MOH",
+    "status": "Functional"
+  },
+  {
+    "id": 9,
+    "governorate": "Gaza City",
+    "name": "Al Shetea PHC",
+    "type": "PHC",
+    "provider": "MOH",
+    "status": "Functional"
+  },
+  {
+    "id": 10,
+    "governorate": "Gaza City",
+    "name": "Al Sahaba Medical Point ",
+    "type": "Medical Point",
+    "provider": "PRCS",
+    "status": "Functional"
+  },
+  {
+    "id": 11,
+    "governorate": "Gaza City",
+    "name": "Al Qudus Hospital",
+    "type": "Hospital",
+    "provider": "PRCS",
+    "status": "Functional"
+  },
+  {
+    "id": 12,
+    "governorate": "Gaza City",
+    "name": "Blood Bank Medical Point",
+    "type": "Medical Point",
+    "provider": "MOH",
+    "status": "Functional"
+  },
+  {
+    "id": 13,
+    "governorate": "Gaza City",
+    "name": "Al Falah MP",
+    "type": "Medical Point",
+    "provider": "MOH",
+    "status": "Functional"
+  },
+  {
+    "id": 14,
+    "governorate": "Dier Elbalah",
+    "name": "Al-Zawaydeh PHC",
+    "type": "PHC",
+    "provider": "MOH",
+    "status": "Functional"
+  },
+  {
+    "id": 15,
+    "governorate": "Dier Elbalah",
+    "name": "S Nusirat PHC",
+    "type": "PHC",
+    "provider": "MOH",
+    "status": "Functional"
+  },
+  {
+    "id": 16,
+    "governorate": "Dier Elbalah",
+    "name": "Deir Al-Balah PHC",
+    "type": "PHC",
+    "provider": "MOH",
+    "status": "Functional"
+  },
+  {
+    "id": 17,
+    "governorate": "Dier Elbalah",
+    "name": "Burej PHC",
+    "type": "PHC",
+    "provider": "MOH",
+    "status": "Functional"
+  },
+  {
+    "id": 18,
+    "governorate": "Dier Elbalah",
+    "name": "Deir El-Balah Health Center",
+    "type": "PHC",
+    "provider": "UNRWA",
+    "status": "Functional"
+  },
+  {
+    "id": 19,
+    "governorate": "Dier Elbalah",
+    "name": "Nuseirat Health Center",
+    "type": "PHC",
+    "provider": "UNRWA",
+    "status": "Functional"
+  },
+  {
+    "id": 20,
+    "governorate": "Dier Elbalah",
+    "name": "West Nuseirat Health Center",
+    "type": "PHC",
+    "provider": "UNRWA",
+    "status": "Functional"
+  },
+  {
+    "id": 21,
+    "governorate": "Dier Elbalah",
+    "name": "Maghazi Elem. Co-ed \"A\" & \"B\"",
+    "type": "Meical Point",
+    "provider": "UNRWA",
+    "status": "Functional"
+  },
+  {
+    "id": 22,
+    "governorate": "Dier Elbalah",
+    "name": "Deir Al, Balah PHC",
+    "type": "PHC",
+    "provider": "PRCS",
+    "status": "Functional"
+  },
+  {
+    "id": 23,
+    "governorate": "Dier Elbalah",
+    "name": "IMC PHC",
+    "type": "PHC",
+    "provider": "IMC",
+    "status": "Functional"
+  },
+  {
+    "id": 24,
+    "governorate": "Dier Elbalah",
+    "name": "Burej MP",
+    "type": "MP",
+    "provider": "UNRWA",
+    "status": "Functional"
+  },
+  {
+    "id": 25,
+    "governorate": "KhanYounis",
+    "name": "Al Aqsa B. Clinic",
+    "type": "Medical Point",
+    "provider": "MOH",
+    "status": "Functional"
+  },
+  {
+    "id": 26,
+    "governorate": "KhanYounis",
+    "name": "Asda medical Point",
+    "type": "Medical Point",
+    "provider": "MOH",
+    "status": "Functional"
+  },
+  {
+    "id": 27,
+    "governorate": "KhanYounis",
+    "name": "Hamad Health Center",
+    "type": "PHC",
+    "provider": "UNRWA",
+    "status": "Functional"
+  },
+  {
+    "id": 28,
+    "governorate": "KhanYounis",
+    "name": "Zorob Health Centre",
+    "type": "PHC",
+    "provider": "UNRWA",
+    "status": "Functional"
+  },
+  {
+    "id": 29,
+    "governorate": "KhanYounis",
+    "name": "Japanese Health Center",
+    "type": "PHC",
+    "provider": "UNRWA",
+    "status": "Functional"
+  },
+  {
+    "id": 30,
+    "governorate": "KhanYounis",
+    "name": "Mawasi Medical Point Num 2",
+    "type": "Medical Point",
+    "provider": "UNRWA",
+    "status": "Functional"
+  },
+  {
+    "id": 31,
+    "governorate": "KhanYounis",
+    "name": "Huneyn Medical point",
+    "type": "Medical Point",
+    "provider": "UNRWA",
+    "status": "Functional"
+  },
+  {
+    "id": 32,
+    "governorate": "KhanYounis",
+    "name": "Maweya Medical Point ",
+    "type": "Medical Point",
+    "provider": "UNRWA",
+    "status": "Functional"
+  },
+  {
+    "id": 33,
+    "governorate": "KhanYounis",
+    "name": "Al Mawasi PHC",
+    "type": "PHC",
+    "provider": "PRCS",
+    "status": "Functional"
+  },
+  {
+    "id": 34,
+    "governorate": "KhanYounis",
+    "name": "Al Qarara Mawasi",
+    "type": "Medical Point",
+    "provider": "PRCS",
+    "status": "Functional"
+  },
+  {
+    "id": 35,
+    "governorate": "KhanYounis",
+    "name": "Alamal Medical Point",
+    "type": "Medical Point",
+    "provider": "PRCS",
+    "status": "Functional"
+  },
+  {
+    "id": 36,
+    "governorate": "Rafah",
+    "name": "MSF Spain",
+    "type": "Medical Point",
+    "provider": "MSF",
+    "status": "Functional"
+  }
+]
