@@ -39,5 +39,5 @@ body { background: #f0f4f8; font-family: Arial, sans-serif; }
   .monthly-table { min-width:unset; font-size:.7rem; }
   canvas { max-width:100%!important; height:auto!important; }
   .table-responsive { overflow:visible!important; }
-  @page { size: A3 landscape; margin: 1cm; }
+  @page { size: landscape; margin: 1cm; }
 }
