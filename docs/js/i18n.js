@@ -59,6 +59,11 @@ const TRANSLATIONS = {
     leg45:           '≥ 45% ضعيف',
     leg0:            '< 45% حرج',
     langBtn:         '🇬🇧 English',
+    chart1Title:     'التراكمي الشهري مقابل الهدف',
+    chart2Title:     'نسبة التغطية الشهرية (%)',
+    targetLine:      'الهدف',
+    chart1Y:         'عدد الجرعات',
+    chart2Y:         'نسبة التغطية %',
   },
   en: {
     dir: 'ltr', lang: 'en',
@@ -120,6 +125,11 @@ const TRANSLATIONS = {
     leg45:           '≥ 45% Weak',
     leg0:            '< 45% Critical',
     langBtn:         '🇸🇦 عربي',
+    chart1Title:     'Monthly Cumulative vs Target',
+    chart2Title:     'Monthly Coverage Rate (%)',
+    targetLine:      'Target',
+    chart1Y:         'Doses',
+    chart2Y:         'Coverage %',
   }
 };
 

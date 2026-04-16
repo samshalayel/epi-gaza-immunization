@@ -7,6 +7,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
   <link href="css/style.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
 <body>
 <nav class="navbar navbar-dark" style="background:#1FA2C8">
@@ -209,6 +210,30 @@ function renderPage() {
       <span class="legend-badge" style="background:#FF9900;color:#fff">${t('leg45')}</span>
       <span class="legend-badge" style="background:#FF0000;color:#fff">${t('leg0')}</span>
     </div>
+  </div>
+
+  <!-- ── Charts ── -->
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-xl-6">
+      <div class="card shadow-sm h-100">
+        <div class="card-header section-header">
+          <i class="bi bi-graph-up"></i> ${t('chart1Title')}
+        </div>
+        <div class="card-body" style="position:relative;height:320px">
+          <canvas id="chartCumulative"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-xl-6">
+      <div class="card shadow-sm h-100">
+        <div class="card-header section-header">
+          <i class="bi bi-percent"></i> ${t('chart2Title')}
+        </div>
+        <div class="card-body" style="position:relative;height:320px">
+          <canvas id="chartCoverage"></canvas>
+        </div>
+      </div>
+    </div>
   </div>`;
 
   document.getElementById('pageContent').innerHTML = html;
@@ -270,10 +295,153 @@ function recalcAll() {
       } else {annEl.textContent='–'; if(stEl)stEl.textContent='–';}
     }
   });
+  renderCharts();
 }
 
 function covClass(p){if(p>=100)return'cov-excellent';if(p>=75)return'cov-good';if(p>=50)return'cov-fair';if(p>=45)return'cov-weak';return'cov-critical';}
 function doClass(p){return p>10?'text-danger':p>5?'text-warning':'text-success';}
+
+// ── Charts ────────────────────────────────────────────────────────────────────
+let chartCum = null, chartCov = null;
+
+const CHART_ANTIGENS = [
+  {key:'BCG',    label:'BCG',    color:'#1FA2C8'},
+  {key:'Penta1', label:'Penta 1',color:'#E67E22'},
+  {key:'Penta3', label:'Penta 3',color:'#8E44AD'},
+  {key:'MR1',    label:'MR 1',   color:'#27AE60'},
+  {key:'MR2',    label:'MR 2',   color:'#E74C3C'},
+];
+
+function renderCharts() {
+  const canvasCum = document.getElementById('chartCumulative');
+  const canvasCov = document.getElementById('chartCoverage');
+  if (!canvasCum || !canvasCov) return;
+
+  const target = getTarget();
+  const labels = MONTHS;
+
+  // Collect monthly inputs
+  const monthly = {};
+  document.querySelectorAll('.monthly-input').forEach(inp => {
+    const ag = inp.dataset.ag, m = parseInt(inp.dataset.m);
+    if (!monthly[ag]) monthly[ag] = {};
+    monthly[ag][m] = parseInt(inp.value) || 0;
+  });
+
+  // Build cumulative series per antigen
+  const cumSeries = CHART_ANTIGENS.map(ag => {
+    let cum = 0;
+    return MONTHS.map((_, i) => {
+      cum += (monthly[ag.key] && monthly[ag.key][i+1]) || 0;
+      return cum;
+    });
+  });
+
+  // Target line: linear 0 → target over 12 months
+  const targetLine = MONTHS.map((_, i) => Math.round(target * (i + 1) / 12));
+
+  // Coverage % series (cumulative / target * 100)
+  const covSeries = cumSeries.map(series =>
+    series.map(v => target > 0 ? parseFloat((v / target * 100).toFixed(1)) : 0)
+  );
+
+  const isRTL = document.documentElement.dir === 'rtl';
+
+  const commonOpts = {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 10 } },
+      tooltip: { rtl: isRTL }
+    },
+    scales: {
+      x: { ticks: { font: { size: 10 } }, grid: { color: '#eee' } },
+    }
+  };
+
+  // ── Chart 1: Cumulative vs Target ──
+  const cum_datasets = CHART_ANTIGENS.map((ag, i) => ({
+    label: ag.label,
+    data: cumSeries[i],
+    borderColor: ag.color,
+    backgroundColor: ag.color + '22',
+    borderWidth: 2,
+    pointRadius: 3,
+    pointHoverRadius: 5,
+    tension: 0.3,
+    fill: false,
+  }));
+
+  if (target > 0) {
+    cum_datasets.push({
+      label: t('targetLine'),
+      data: targetLine,
+      borderColor: '#888',
+      borderDash: [6, 4],
+      borderWidth: 2,
+      pointRadius: 0,
+      tension: 0,
+      fill: false,
+    });
+  }
+
+  if (chartCum) chartCum.destroy();
+  chartCum = new Chart(canvasCum, {
+    type: 'line',
+    data: { labels, datasets: cum_datasets },
+    options: {
+      ...commonOpts,
+      scales: {
+        ...commonOpts.scales,
+        y: {
+          beginAtZero: true,
+          title: { display: true, text: t('chart1Y'), font: { size: 11 } },
+          grid: { color: '#eee' }
+        }
+      }
+    }
+  });
+
+  // ── Chart 2: Coverage % ──
+  const cov_datasets = CHART_ANTIGENS.map((ag, i) => ({
+    label: ag.label,
+    data: covSeries[i],
+    borderColor: ag.color,
+    backgroundColor: ag.color + '22',
+    borderWidth: 2,
+    pointRadius: 3,
+    pointHoverRadius: 5,
+    tension: 0.3,
+    fill: false,
+  }));
+
+  if (chartCov) chartCov.destroy();
+  chartCov = new Chart(canvasCov, {
+    type: 'line',
+    data: { labels, datasets: cov_datasets },
+    options: {
+      ...commonOpts,
+      scales: {
+        ...commonOpts.scales,
+        y: {
+          beginAtZero: true,
+          max: 120,
+          title: { display: true, text: t('chart2Y'), font: { size: 11 } },
+          grid: { color: '#eee' },
+          ticks: {
+            callback: v => v + '%',
+            font: { size: 10 }
+          }
+        }
+      },
+      plugins: {
+        ...commonOpts.plugins,
+        annotation: undefined,
+      }
+    }
+  });
+}
 
 function saveData(){
   const obj={catchment_pop:parseFloat(document.getElementById('catchPop').value)||0, si_percent:parseFloat(document.getElementById('siPct').value)||3.2};
