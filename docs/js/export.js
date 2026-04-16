@@ -242,17 +242,22 @@ function buildSheet(fac, year, d, chartImages) {
 }
 
 // ── Public API ──────────────────────────────────────────────────────────────
-function exportSingleFacility(fac, year) {
+// d = data object (flat: { BCG_1: x, catchment_pop: y, ... })
+// If d is omitted, falls back to empty object
+function exportSingleFacility(fac, year, d = {}) {
   const wb = XLSX.utils.book_new();
-  const d  = JSON.parse(localStorage.getItem(`data_${fac.id}_${year}`) || '{}');
   XLSX.utils.book_append_sheet(wb, buildSheet(fac, year, d), truncSheet(fac.name));
   XLSX.writeFile(wb, `EPI_${fac.name.replace(/[\/\\:*?"<>|]/g,'-')}_${year}.xlsx`, { cellStyles:true });
 }
 
-function exportAllFacilities(facilities, year) {
+async function exportAllFacilities(facilities, year) {
   const wb = XLSX.utils.book_new();
   for (const fac of facilities) {
-    const d = JSON.parse(localStorage.getItem(`data_${fac.id}_${year}`) || '{}');
+    let d = {};
+    try {
+      const r = await api.getData(fac.id, year);
+      d = { ...(r.monthly_data || {}), catchment_pop: r.catchment_pop || 0, si_percent: r.si_percent != null ? r.si_percent : 3.2 };
+    } catch(e) { /* empty data */ }
     XLSX.utils.book_append_sheet(wb, buildSheet(fac, year, d), truncSheet(fac.name));
   }
   XLSX.writeFile(wb, `EPI_All_Facilities_${year}.xlsx`, { cellStyles:true });

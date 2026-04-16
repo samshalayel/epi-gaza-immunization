@@ -19,6 +19,10 @@
       <button class="btn btn-light btn-sm" onclick="showAddModal()">
         <i class="bi bi-plus-circle"></i> <span id="nav-add"></span>
       </button>
+      <label class="btn btn-outline-light btn-sm mb-0" title="Import Excel">
+        <i class="bi bi-file-earmark-arrow-up"></i> <span id="nav-import"></span>
+        <input type="file" accept=".xlsx" style="display:none" onchange="importExcel(event)">
+      </label>
       <button class="btn btn-outline-light btn-sm" onclick="exportAll()">
         <i class="bi bi-file-earmark-excel"></i> <span id="nav-export"></span>
       </button>
@@ -54,7 +58,9 @@
     </div>
   </div>
 
-  <div id="listContainer"></div>
+  <div id="listContainer">
+    <div class="text-center py-5"><div class="spinner-border text-primary"></div></div>
+  </div>
 </div>
 
 <!-- Add Facility Modal -->
@@ -68,7 +74,7 @@
       <div class="modal-body">
         <div class="mb-2">
           <label class="form-label fw-bold" id="lbl-fname"></label>
-          <input type="text" id="newName" class="form-control" id="inp-fname">
+          <input type="text" id="newName" class="form-control">
         </div>
         <div class="mb-2">
           <label class="form-label fw-bold" id="lbl-fgov"></label>
@@ -107,19 +113,37 @@
   </div>
 </div>
 
+<!-- Toast -->
+<div id="toastBox" class="position-fixed bottom-0 start-50 translate-middle-x mb-3" style="z-index:9999;display:none">
+  <div class="alert shadow py-2 px-4 mb-0" id="toastAlert">
+    <span id="toastMsg"></span>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <script src="js/data.js"></script>
 <script src="js/i18n.js"></script>
+<script src="js/api.js"></script>
 <script src="js/export.js"></script>
 <script>
 let facilities = [];
+let dataStatus = {}; // { facilityId_year: true }
+
+function showToast(msg, type = 'success') {
+  const box = document.getElementById('toastBox');
+  const alert = document.getElementById('toastAlert');
+  alert.className = `alert shadow py-2 px-4 mb-0 alert-${type}`;
+  document.getElementById('toastMsg').textContent = msg;
+  box.style.display = 'block';
+  setTimeout(() => box.style.display = 'none', 2500);
+}
 
 function applyTranslations() {
   applyDir();
   document.getElementById('nav-title').textContent      = t('appTitle');
   document.getElementById('nav-add').textContent        = t('addFacility');
+  document.getElementById('nav-import').textContent     = t('importExcel');
   document.getElementById('nav-export').textContent     = t('exportAll');
   document.getElementById('langBtn').textContent        = t('langBtn');
   document.getElementById('lbl-facilities').textContent = t('facilities');
@@ -147,21 +171,18 @@ function toggleLang() {
 }
 
 async function loadFacilities() {
-  const stored = localStorage.getItem('facilities');
-  if (stored) {
-    facilities = JSON.parse(stored);
-  } else {
-    const res = await fetch('data/facilities.json');
-    facilities = await res.json();
-    localStorage.setItem('facilities', JSON.stringify(facilities));
+  try {
+    facilities = await api.getFacilities();
+    const govs = [...new Set(facilities.map(f => f.governorate).filter(Boolean))].sort();
+    const sel = document.getElementById('govSel');
+    while (sel.options.length > 1) sel.remove(1);
+    govs.forEach(g => sel.innerHTML += `<option value="${g}">${g}</option>`);
+    applyTranslations();
+    renderList();
+  } catch(e) {
+    document.getElementById('listContainer').innerHTML =
+      `<div class="alert alert-danger"><i class="bi bi-exclamation-triangle"></i> ${e.message}</div>`;
   }
-  const govs = [...new Set(facilities.map(f => f.governorate))].sort();
-  const sel = document.getElementById('govSel');
-  // Remove old options except first
-  while (sel.options.length > 1) sel.remove(1);
-  govs.forEach(g => sel.innerHTML += `<option value="${g}">${g}</option>`);
-  applyTranslations();
-  renderList();
 }
 
 function renderList() {
@@ -178,8 +199,9 @@ function renderList() {
 
   const groups = {};
   filtered.forEach(f => {
-    if (!groups[f.governorate]) groups[f.governorate] = [];
-    groups[f.governorate].push(f);
+    const g = f.governorate || '—';
+    if (!groups[g]) groups[g] = [];
+    groups[g].push(f);
   });
 
   let html = '';
@@ -202,15 +224,13 @@ function renderList() {
             </tr>
           </thead><tbody>`;
     facs.forEach(f => {
-      const hasData = !!localStorage.getItem(`data_${f.id}_${year}`);
       html += `<tr>
         <td class="text-muted">${f.id}</td>
         <td class="fw-semibold">${f.name}</td>
-        <td><span class="badge bg-info text-dark">${f.type}</span></td>
-        <td>${f.provider}</td>
+        <td><span class="badge bg-info text-dark">${f.type || '—'}</span></td>
+        <td>${f.provider || '—'}</td>
         <td>
           <span class="badge bg-success">${t('functional')}</span>
-          ${hasData ? `<span class="badge bg-primary ms-1">${t('hasData')}</span>` : ''}
         </td>
         <td>
           <a href="facility.html?id=${f.id}&year=${year}" class="btn btn-primary btn-xs">
@@ -218,6 +238,9 @@ function renderList() {
           </a>
           <button onclick="exportFacility(${f.id},'${year}')" class="btn btn-success btn-xs">
             <i class="bi bi-file-earmark-excel"></i> Excel
+          </button>
+          <button onclick="deleteFacility(${f.id})" class="btn btn-danger btn-xs">
+            <i class="bi bi-trash"></i>
           </button>
         </td>
       </tr>`;
@@ -229,33 +252,82 @@ function renderList() {
 }
 
 function showAddModal() {
+  document.getElementById('newName').value = '';
   new bootstrap.Modal(document.getElementById('addModal')).show();
 }
 
-function addFacility() {
+async function addFacility() {
   const name = document.getElementById('newName').value.trim();
   if (!name) return alert(t('nameLabel'));
-  const maxId = Math.max(...facilities.map(f => f.id), 100);
-  facilities.push({
-    id: maxId + 1,
-    governorate: document.getElementById('newGov').value,
-    name,
-    type: document.getElementById('newType').value,
-    provider: document.getElementById('newProvider').value,
-    status: 'Functional'
-  });
-  localStorage.setItem('facilities', JSON.stringify(facilities));
-  bootstrap.Modal.getInstance(document.getElementById('addModal')).hide();
-  renderList();
+  try {
+    const fac = await api.addFacility({
+      name,
+      governorate: document.getElementById('newGov').value,
+      type:        document.getElementById('newType').value,
+      provider:    document.getElementById('newProvider').value,
+    });
+    facilities.push(fac);
+    bootstrap.Modal.getInstance(document.getElementById('addModal')).hide();
+    renderList();
+    showToast(t('savedMsg'));
+  } catch(e) {
+    showToast(e.message, 'danger');
+  }
+}
+
+async function deleteFacility(id) {
+  if (!confirm('Delete this facility?')) return;
+  try {
+    await api.deleteFacility(id);
+    facilities = facilities.filter(f => f.id !== id);
+    renderList();
+  } catch(e) {
+    showToast(e.message, 'danger');
+  }
+}
+
+async function importExcel(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const data = await file.arrayBuffer();
+  const wb   = XLSX.read(data);
+  const ws   = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(ws);
+  if (!rows.length) return showToast('No rows found', 'warning');
+
+  // Map columns flexibly
+  const list = rows.map(r => ({
+    name:        r['Facility Name'] || r['name'] || r['اسم المؤسسة'] || Object.values(r)[0] || '',
+    governorate: r['Governorate']   || r['governorate'] || r['المحافظة'] || '',
+    type:        r['Type']          || r['type']        || r['النوع']    || '',
+    provider:    r['Provider']      || r['provider']    || r['المزود']   || '',
+  })).filter(r => r.name);
+
+  try {
+    const res = await api.importFacilities(list);
+    showToast(`Imported ${res.imported} facilities`);
+    await loadFacilities();
+  } catch(e) {
+    showToast(e.message, 'danger');
+  }
+  event.target.value = '';
 }
 
 function exportAll() {
   exportAllFacilities(facilities, document.getElementById('yearSel').value);
 }
 
-function exportFacility(id, year) {
+async function exportFacility(id, year) {
   const fac = facilities.find(f => f.id === id);
-  if (fac) exportSingleFacility(fac, year);
+  if (!fac) return;
+  try {
+    const d = await api.getData(id, year);
+    // Flatten monthly_data into top-level keys for export
+    const flat = { ...(d.monthly_data || {}), catchment_pop: d.catchment_pop, si_percent: d.si_percent };
+    exportSingleFacility(fac, year, flat);
+  } catch(e) {
+    exportSingleFacility(fac, year, {});
+  }
 }
 
 loadFacilities();

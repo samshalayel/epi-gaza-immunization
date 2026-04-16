@@ -43,6 +43,7 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <script src="js/data.js"></script>
 <script src="js/i18n.js"></script>
+<script src="js/api.js"></script>
 <script src="js/export.js"></script>
 <script>
 const PARAMS  = new URLSearchParams(location.search);
@@ -68,24 +69,21 @@ function toggleLang() {
 
 async function init() {
   applyDir();
-  const stored = localStorage.getItem('facilities');
-  let facilities;
-  if (stored) {
-    facilities = JSON.parse(stored);
-  } else {
-    const res = await fetch('data/facilities.json');
-    facilities = await res.json();
-    localStorage.setItem('facilities', JSON.stringify(facilities));
+  try {
+    const facilities = await api.getFacilities();
+    facility = facilities.find(f => f.id === FAC_ID);
+    if (!facility) {
+      document.getElementById('pageContent').innerHTML = '<div class="alert alert-danger">Facility not found</div>';
+      return;
+    }
+    document.title = facility.name;
+    const d = await api.getData(FAC_ID, YEAR);
+    // Flatten API response: monthly_data + catchment_pop + si_percent
+    currentData = { ...(d.monthly_data || {}), catchment_pop: d.catchment_pop || 0, si_percent: d.si_percent != null ? d.si_percent : 3.2 };
+    renderPage();
+  } catch(e) {
+    document.getElementById('pageContent').innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
   }
-  facility = facilities.find(f => f.id === FAC_ID);
-  if (!facility) {
-    document.getElementById('pageContent').innerHTML = '<div class="alert alert-danger">Facility not found</div>';
-    return;
-  }
-  document.title = facility.name;
-  const saved = localStorage.getItem(`data_${FAC_ID}_${YEAR}`);
-  currentData = saved ? JSON.parse(saved) : {};
-  renderPage();
 }
 
 function renderPage() {
@@ -449,26 +447,44 @@ function renderCharts() {
   });
 }
 
-function saveData(){
-  const obj={catchment_pop:parseFloat(document.getElementById('catchPop').value)||0, si_percent:parseFloat(document.getElementById('siPct').value)||3.2};
-  document.querySelectorAll('.monthly-input').forEach(inp=>{obj[`${inp.dataset.ag}_${inp.dataset.m}`]=parseInt(inp.value)||0;});
-  localStorage.setItem(`data_${FAC_ID}_${YEAR}`, JSON.stringify(obj));
-  currentData=obj;
-  const toast=document.getElementById('savedToast');
-  document.getElementById('toast-msg').textContent=t('savedMsg');
-  toast.style.display='block';
-  setTimeout(()=>toast.style.display='none', 2500);
+async function saveData(){
+  const monthly = {};
+  document.querySelectorAll('.monthly-input').forEach(inp => {
+    monthly[`${inp.dataset.ag}_${inp.dataset.m}`] = parseInt(inp.value) || 0;
+  });
+  const payload = {
+    catchment_pop: parseFloat(document.getElementById('catchPop').value) || 0,
+    si_percent:    parseFloat(document.getElementById('siPct').value)    || 3.2,
+    monthly_data:  monthly,
+  };
+  try {
+    await api.saveData(FAC_ID, YEAR, payload);
+    currentData = { ...monthly, catchment_pop: payload.catchment_pop, si_percent: payload.si_percent };
+    const toast = document.getElementById('savedToast');
+    document.getElementById('toast-msg').textContent = t('savedMsg');
+    toast.style.display = 'block';
+    setTimeout(() => toast.style.display = 'none', 2500);
+  } catch(e) {
+    alert('Save failed: ' + e.message);
+  }
 }
 
-function changeYear(y){
-  YEAR=parseInt(y);
-  history.replaceState(null,'',`facility.html?id=${FAC_ID}&year=${YEAR}`);
-  const saved=localStorage.getItem(`data_${FAC_ID}_${YEAR}`);
-  currentData=saved?JSON.parse(saved):{};
+async function changeYear(y){
+  YEAR = parseInt(y);
+  history.replaceState(null, '', `facility.html?id=${FAC_ID}&year=${YEAR}`);
+  try {
+    const d = await api.getData(FAC_ID, YEAR);
+    currentData = { ...(d.monthly_data || {}), catchment_pop: d.catchment_pop || 0, si_percent: d.si_percent != null ? d.si_percent : 3.2 };
+  } catch(e) {
+    currentData = {};
+  }
   renderPage();
 }
 
-function exportCurrent(){ exportSingleFacility(facility, YEAR); }
+function exportCurrent(){
+  const flat = { ...currentData };
+  exportSingleFacility(facility, YEAR, flat);
+}
 
 init();
 </script>
