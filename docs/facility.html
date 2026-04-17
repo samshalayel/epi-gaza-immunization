@@ -135,72 +135,93 @@ function renderPage() {
     </div>
   </div>
 
+  <!-- ── Monthly entry: tabs ── -->
   <div class="card shadow-sm mb-3">
     <div class="card-header section-header d-flex justify-content-between align-items-center">
-      <span><i class="bi bi-table"></i> ${t('monthlyTitle')}</span>
-      <small class="text-white opacity-75">${t('monthlyHint')}</small>
+      <span><i class="bi bi-calendar3"></i> ${t('monthlyTitle')}</span>
+      <small class="text-white opacity-75 d-none d-md-inline">${t('monthlyHint')}</small>
     </div>
-    <div class="table-responsive">
-      <table class="table table-bordered table-sm mb-0 monthly-table" id="mainTable">
+    <div class="card-body p-2">
+      <!-- Month tabs -->
+      <div class="d-flex flex-wrap gap-1 mb-3" id="monthTabs">
+        ${MONTHS.map((m,i)=>`
+          <button class="btn btn-sm ${i===0?'btn-primary':'btn-outline-secondary'} month-tab-btn"
+            data-m="${i+1}" onclick="switchMonth(${i+1})">${m}</button>`).join('')}
+      </div>
+      <!-- Input table for selected month -->
+      <table class="table table-bordered table-sm mb-0" id="monthInputTable">
         <thead>
           <tr class="table-header-row">
-            <th rowspan="2" class="antigen-col">${t('antigen')}</th>
-            ${MONTHS.map(m=>`<th colspan="2" class="text-center month-header">${m}</th>`).join('')}
-            <th rowspan="2" class="text-center annual-col">${t('annual')}</th>
-            <th rowspan="2" class="text-center cov-col">${t('coverage')}</th>
-          </tr>
-          <tr class="table-subheader-row">
-            ${MONTHS.map(()=>`<th class="text-center subh">${t('monthly')}</th><th class="text-center subh">${t('cumul')}</th>`).join('')}
+            <th style="width:45%">${t('antigen')}</th>
+            <th class="text-center" style="width:27%">${t('monthly')}</th>
+            <th class="text-center" style="width:28%">${t('cumul')}</th>
           </tr>
         </thead>
         <tbody>
-          ${ANTIGENS.map((ag,i) => {
-            const rowCls = i%2===0?'row-blue':'row-yellow';
-            let cells = '';
-            for(let m=1;m<=12;m++){
-              const v = currentData[`${ag.key}_${m}`]||0;
-              cells += `<td><input type="number" class="form-control form-control-sm monthly-input text-center p-1"
-                data-ag="${ag.key}" data-m="${m}" value="${v}" min="0" oninput="recalcAll()"></td>
-                <td class="cum-cell text-center fw-semibold" id="cum_${ag.key}_${m}">0</td>`;
-            }
-            return `<tr class="${rowCls}" data-ag="${ag.key}">
-              <td class="antigen-label fw-semibold">${ag.label}</td>
-              ${cells}
-              <td class="text-center fw-bold annual-cell" id="ann_${ag.key}">0</td>
-              <td class="text-center cov-cell" id="cov_${ag.key}">–</td>
-            </tr>`;
-          }).join('')}
+          ${ANTIGENS.map((ag,i)=>`
+          <tr class="${i%2===0?'row-blue':'row-yellow'}">
+            <td class="fw-semibold align-middle">${ag.label}</td>
+            <td class="p-1">
+              <input type="number" class="form-control form-control-sm monthly-input text-center"
+                data-ag="${ag.key}" data-m="1" value="${currentData[ag.key+'_1']||0}" min="0" oninput="recalcAll()">
+            </td>
+            <td class="cum-cell text-center fw-semibold align-middle" id="cum_${ag.key}_active">0</td>
+          </tr>`).join('')}
         </tbody>
       </table>
     </div>
   </div>
 
+  <!-- ── Annual summary ── -->
   <div class="card shadow-sm mb-3">
     <div class="card-header section-header">
-      <i class="bi bi-graph-down-arrow"></i> ${t('dropoutTitle')}
-      <small class="text-white opacity-75 me-3">${t('dropoutFormula')}</small>
+      <i class="bi bi-table"></i> ${t('annual')} &amp; ${t('coverage')}
     </div>
     <div class="table-responsive">
       <table class="table table-bordered table-sm mb-0">
         <thead>
           <tr class="table-header-row">
-            <th class="antigen-col">${t('antigen')}</th>
-            ${MONTHS.map(m=>`<th class="text-center">${m}</th>`).join('')}
+            <th>${t('antigen')}</th>
+            ${MONTHS.map(m=>`<th class="text-center" style="font-size:.72rem;padding:3px">${m.substring(0,3)}</th>`).join('')}
             <th class="text-center">${t('annual')}</th>
-            <th class="text-center">${t('assessment')}</th>
+            <th class="text-center">${t('coverage')}</th>
           </tr>
         </thead>
-        <tbody id="dropoutBody">
-          ${DROPOUTS.map((d,i)=>`
-          <tr class="${i%2===0?'row-blue':'row-yellow'}" data-num="${d.num}" data-den="${d.den}">
-            <td class="antigen-label fw-semibold">${d.label}</td>
-            ${MONTHS.map((_,mi)=>`<td class="text-center" id="do_${i}_${mi+1}">–</td>`).join('')}
-            <td class="text-center fw-bold" id="do_ann_${i}">–</td>
-            <td class="text-center" id="do_st_${i}">–</td>
+        <tbody>
+          ${ANTIGENS.map((ag,i)=>`
+          <tr class="${i%2===0?'row-blue':'row-yellow'}">
+            <td class="fw-semibold" style="font-size:.8rem">${ag.label}</td>
+            ${MONTHS.map((_,mi)=>`<td class="text-center cum-cell" id="cum_${ag.key}_${mi+1}" style="font-size:.78rem;padding:2px">0</td>`).join('')}
+            <td class="text-center fw-bold annual-cell" id="ann_${ag.key}">0</td>
+            <td class="text-center cov-cell" id="cov_${ag.key}">–</td>
           </tr>`).join('')}
         </tbody>
       </table>
     </div>
+  </div>
+
+  <!-- ── Dropout summary ── -->
+  <div class="card shadow-sm mb-3">
+    <div class="card-header section-header">
+      <i class="bi bi-graph-down-arrow"></i> ${t('dropoutTitle')}
+    </div>
+    <table class="table table-bordered table-sm mb-0">
+      <thead>
+        <tr class="table-header-row">
+          <th>${t('antigen')}</th>
+          <th class="text-center">${t('annual')} %</th>
+          <th class="text-center">${t('assessment')}</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${DROPOUTS.map((d,i)=>`
+        <tr class="${i%2===0?'row-blue':'row-yellow'}" data-num="${d.num}" data-den="${d.den}">
+          <td class="fw-semibold" style="font-size:.85rem">${d.label}</td>
+          <td class="text-center fw-bold" id="do_ann_${i}">–</td>
+          <td class="text-center" id="do_st_${i}">–</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
   </div>
 
   <div class="card shadow-sm mb-4">
@@ -244,6 +265,24 @@ function renderPage() {
   setTimeout(renderCharts, 50);
 }
 
+let ACTIVE_MONTH = 1;
+
+function switchMonth(m) {
+  ACTIVE_MONTH = m;
+  // Update tab styles
+  document.querySelectorAll('.month-tab-btn').forEach(btn => {
+    const active = parseInt(btn.dataset.m) === m;
+    btn.className = `btn btn-sm ${active ? 'btn-primary' : 'btn-outline-secondary'} month-tab-btn`;
+  });
+  // Update inputs to show selected month values
+  document.querySelectorAll('.monthly-input').forEach(inp => {
+    const ag = inp.dataset.ag;
+    inp.dataset.m = m;
+    inp.value = currentData[`${ag}_${m}`] || 0;
+  });
+  recalcAll();
+}
+
 function recalcTarget() {
   const c = parseFloat(document.getElementById('catchPop').value)||0;
   const s = parseFloat(document.getElementById('siPct').value)||0;
@@ -258,45 +297,56 @@ function getTarget() {
 }
 
 function recalcAll() {
-  const monthly={}, cumByMonth={}, annuals={};
+  // Save active month input values into currentData
   document.querySelectorAll('.monthly-input').forEach(inp => {
-    const ag=inp.dataset.ag, m=parseInt(inp.dataset.m);
-    if(!monthly[ag]) monthly[ag]={};
-    monthly[ag][m]=parseInt(inp.value)||0;
+    currentData[`${inp.dataset.ag}_${inp.dataset.m}`] = parseInt(inp.value) || 0;
   });
-  const target=getTarget();
-  ANTIGENS.forEach(ag=>{
-    let cum=0; cumByMonth[ag.key]={};
-    for(let m=1;m<=12;m++){
-      cum+=(monthly[ag.key]&&monthly[ag.key][m])||0;
-      cumByMonth[ag.key][m]=cum;
-      const el=document.getElementById(`cum_${ag.key}_${m}`);
-      if(el) el.textContent=cum.toLocaleString();
+
+  // Build full cumulative from currentData
+  const cumByMonth = {}, annuals = {};
+  const target = getTarget();
+
+  ANTIGENS.forEach(ag => {
+    let cum = 0;
+    cumByMonth[ag.key] = {};
+    for (let m = 1; m <= 12; m++) {
+      cum += currentData[`${ag.key}_${m}`] || 0;
+      cumByMonth[ag.key][m] = cum;
+      // Update summary table cumulative cells
+      const el = document.getElementById(`cum_${ag.key}_${m}`);
+      if (el) el.textContent = cum.toLocaleString();
     }
-    annuals[ag.key]=cum;
-    const annEl=document.getElementById(`ann_${ag.key}`);
-    if(annEl) annEl.textContent=cum.toLocaleString();
-    const covEl=document.getElementById(`cov_${ag.key}`);
-    if(covEl){
-      if(target>0){const p=(cum/target*100).toFixed(1); covEl.textContent=p+'%'; covEl.className='text-center cov-cell '+covClass(parseFloat(p));}
-      else covEl.textContent='–';
+    annuals[ag.key] = cum;
+
+    // Update active-month cumulative shown next to input
+    const activeEl = document.getElementById(`cum_${ag.key}_active`);
+    if (activeEl) activeEl.textContent = (cumByMonth[ag.key][ACTIVE_MONTH] || 0).toLocaleString();
+
+    // Annual + coverage
+    const annEl = document.getElementById(`ann_${ag.key}`);
+    if (annEl) annEl.textContent = cum.toLocaleString();
+    const covEl = document.getElementById(`cov_${ag.key}`);
+    if (covEl) {
+      if (target > 0) {
+        const p = (cum / target * 100).toFixed(1);
+        covEl.textContent = p + '%';
+        covEl.className = 'text-center cov-cell ' + covClass(parseFloat(p));
+      } else covEl.textContent = '–';
     }
   });
-  DROPOUTS.forEach((d,i)=>{
-    for(let m=1;m<=12;m++){
-      const n=(cumByMonth[d.num]&&cumByMonth[d.num][m])||0;
-      const dn=(cumByMonth[d.den]&&cumByMonth[d.den][m])||0;
-      const el=document.getElementById(`do_${i}_${m}`);
-      if(el){if(n>0){const p=((n-dn)/n*100).toFixed(1); el.textContent=p+'%'; el.className='text-center '+doClass(parseFloat(p));}else el.textContent='–';}
-    }
-    const nA=annuals[d.num]||0, dA=annuals[d.den]||0;
-    const annEl=document.getElementById(`do_ann_${i}`), stEl=document.getElementById(`do_st_${i}`);
-    if(annEl){
-      if(nA>0){
-        const p=((nA-dA)/nA*100).toFixed(1);
-        annEl.textContent=p+'%'; annEl.className='text-center fw-bold '+doClass(parseFloat(p));
-        if(stEl){stEl.textContent=parseFloat(p)>10?t('high'):t('ok'); stEl.className='text-center fw-bold '+(parseFloat(p)>10?'text-danger':'text-success');}
-      } else {annEl.textContent='–'; if(stEl)stEl.textContent='–';}
+
+  // Dropout summary (annual only)
+  DROPOUTS.forEach((d, i) => {
+    const nA = annuals[d.num] || 0, dA = annuals[d.den] || 0;
+    const annEl = document.getElementById(`do_ann_${i}`);
+    const stEl  = document.getElementById(`do_st_${i}`);
+    if (annEl) {
+      if (nA > 0) {
+        const p = ((nA - dA) / nA * 100).toFixed(1);
+        annEl.textContent = p + '%';
+        annEl.className = 'text-center fw-bold ' + doClass(parseFloat(p));
+        if (stEl) { stEl.textContent = parseFloat(p) > 10 ? t('high') : t('ok'); stEl.className = 'text-center fw-bold ' + (parseFloat(p) > 10 ? 'text-danger' : 'text-success'); }
+      } else { annEl.textContent = '–'; if (stEl) stEl.textContent = '–'; }
     }
   });
   renderCharts();
@@ -448,9 +498,14 @@ function renderCharts() {
 }
 
 async function saveData(){
-  const monthly = {};
+  // Flush active month inputs into currentData first
   document.querySelectorAll('.monthly-input').forEach(inp => {
-    monthly[`${inp.dataset.ag}_${inp.dataset.m}`] = parseInt(inp.value) || 0;
+    currentData[`${inp.dataset.ag}_${inp.dataset.m}`] = parseInt(inp.value) || 0;
+  });
+  // Build monthly_data from currentData (all months)
+  const monthly = {};
+  ANTIGENS.forEach(ag => {
+    for (let m = 1; m <= 12; m++) monthly[`${ag.key}_${m}`] = currentData[`${ag.key}_${m}`] || 0;
   });
   const payload = {
     catchment_pop: parseFloat(document.getElementById('catchPop').value) || 0,
