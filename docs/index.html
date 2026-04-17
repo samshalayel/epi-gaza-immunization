@@ -104,6 +104,16 @@
             <option value="MSF">MSF</option>
           </select>
         </div>
+        <div class="row g-2">
+          <div class="col-6">
+            <label class="form-label fw-bold">Latitude</label>
+            <input type="number" id="newLat" class="form-control" step="any" placeholder="31.5000">
+          </div>
+          <div class="col-6">
+            <label class="form-label fw-bold">Longitude</label>
+            <input type="number" id="newLng" class="form-control" step="any" placeholder="34.4667">
+          </div>
+        </div>
       </div>
       <div class="modal-footer">
         <button class="btn btn-primary" onclick="addFacility()"><i class="bi bi-save"></i> <span id="btn-save"></span></button>
@@ -260,11 +270,15 @@ async function addFacility() {
   const name = document.getElementById('newName').value.trim();
   if (!name) return alert(t('nameLabel'));
   try {
+    const lat = parseFloat(document.getElementById('newLat').value) || null;
+    const lng = parseFloat(document.getElementById('newLng').value) || null;
     const fac = await api.addFacility({
       name,
       governorate: document.getElementById('newGov').value,
       type:        document.getElementById('newType').value,
       provider:    document.getElementById('newProvider').value,
+      latitude:    lat,
+      longitude:   lng,
     });
     facilities.push(fac);
     bootstrap.Modal.getInstance(document.getElementById('addModal')).hide();
