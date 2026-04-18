@@ -135,40 +135,24 @@ function renderPage() {
     </div>
   </div>
 
-  <!-- ── Monthly entry: tabs ── -->
+  <!-- ── Quarterly entry ── -->
   <div class="card shadow-sm mb-3">
     <div class="card-header section-header d-flex justify-content-between align-items-center">
       <span><i class="bi bi-calendar3"></i> ${t('monthlyTitle')}</span>
       <small class="text-white opacity-75 d-none d-md-inline">${t('monthlyHint')}</small>
     </div>
     <div class="card-body p-2">
-      <!-- Month tabs -->
-      <div class="d-flex flex-wrap gap-1 mb-3" id="monthTabs">
-        ${MONTHS.map((m,i)=>`
-          <button class="btn btn-sm ${i===0?'btn-primary':'btn-outline-secondary'} month-tab-btn"
-            data-m="${i+1}" onclick="switchMonth(${i+1})">${m}</button>`).join('')}
+      <!-- Quarter tabs -->
+      <div class="d-flex gap-2 mb-3" id="quarterTabs">
+        ${QUARTERS.map((q,qi)=>`
+          <button class="btn ${qi===0?'btn-primary':'btn-outline-secondary'} quarter-tab-btn flex-fill fw-bold"
+            data-q="${qi+1}" onclick="switchQuarter(${qi+1})">
+            ${q.label}
+            <div style="font-size:.68rem;font-weight:400;opacity:.85">${MONTHS[q.months[0]-1].substring(0,3)}–${MONTHS[q.months[2]-1].substring(0,3)}</div>
+          </button>`).join('')}
       </div>
-      <!-- Input table for selected month -->
-      <table class="table table-bordered table-sm mb-0" id="monthInputTable">
-        <thead>
-          <tr class="table-header-row">
-            <th style="width:45%">${t('antigen')}</th>
-            <th class="text-center" style="width:27%">${t('monthly')}</th>
-            <th class="text-center" style="width:28%">${t('cumul')}</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${ANTIGENS.map((ag,i)=>`
-          <tr class="${i%2===0?'row-blue':'row-yellow'}">
-            <td class="fw-semibold align-middle">${ag.label}</td>
-            <td class="p-1">
-              <input type="number" class="form-control form-control-sm monthly-input text-center"
-                data-ag="${ag.key}" data-m="1" value="${currentData[ag.key+'_1']||0}" min="0" oninput="recalcAll()">
-            </td>
-            <td class="cum-cell text-center fw-semibold align-middle" id="cum_${ag.key}_active">0</td>
-          </tr>`).join('')}
-        </tbody>
-      </table>
+      <!-- Input table for selected quarter (3 months) -->
+      <div id="quarterInputArea"></div>
     </div>
   </div>
 
@@ -260,27 +244,56 @@ function renderPage() {
   </div>`;
 
   document.getElementById('pageContent').innerHTML = html;
+  ACTIVE_QUARTER = 1;  // always reset when re-rendering
+  renderQuarterInputs(1);
   recalcAll();
   // Charts need a tick after DOM paint to get correct canvas dimensions
   setTimeout(renderCharts, 50);
 }
 
-let ACTIVE_MONTH = 1;
+let ACTIVE_QUARTER = 1;
 
-function switchMonth(m) {
-  ACTIVE_MONTH = m;
-  // Update tab styles
-  document.querySelectorAll('.month-tab-btn').forEach(btn => {
-    const active = parseInt(btn.dataset.m) === m;
-    btn.className = `btn btn-sm ${active ? 'btn-primary' : 'btn-outline-secondary'} month-tab-btn`;
-  });
-  // Update inputs to show selected month values
+function switchQuarter(q) {
+  // Flush current inputs into currentData BEFORE switching
   document.querySelectorAll('.monthly-input').forEach(inp => {
-    const ag = inp.dataset.ag;
-    inp.dataset.m = m;
-    inp.value = currentData[`${ag}_${m}`] || 0;
+    currentData[`${inp.dataset.ag}_${inp.dataset.m}`] = parseInt(inp.value) || 0;
   });
+  ACTIVE_QUARTER = q;
+  // Update tab styles
+  document.querySelectorAll('.quarter-tab-btn').forEach(btn => {
+    const active = parseInt(btn.dataset.q) === q;
+    btn.className = `btn ${active ? 'btn-primary' : 'btn-outline-secondary'} quarter-tab-btn flex-fill fw-bold`;
+  });
+  renderQuarterInputs(q);
   recalcAll();
+}
+
+function renderQuarterInputs(q) {
+  const qMonths = QUARTERS[q - 1].months;
+  let html = `
+  <table class="table table-bordered table-sm mb-0">
+    <thead>
+      <tr class="table-header-row">
+        <th style="width:35%">${t('antigen')}</th>
+        ${qMonths.map(m => `<th class="text-center">${MONTHS[m-1]}</th>`).join('')}
+        <th class="text-center">${t('cumul')}</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${ANTIGENS.map((ag, i) => `
+      <tr class="${i % 2 === 0 ? 'row-blue' : 'row-yellow'}">
+        <td class="fw-semibold align-middle" style="font-size:.85rem">${ag.label}</td>
+        ${qMonths.map(m => `
+        <td class="p-1">
+          <input type="number" class="form-control form-control-sm monthly-input text-center"
+            data-ag="${ag.key}" data-m="${m}"
+            value="${currentData[`${ag.key}_${m}`] || 0}" min="0" oninput="recalcAll()">
+        </td>`).join('')}
+        <td class="cum-cell text-center fw-semibold align-middle" id="cum_${ag.key}_ytd">0</td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+  document.getElementById('quarterInputArea').innerHTML = html;
 }
 
 function recalcTarget() {
@@ -318,9 +331,10 @@ function recalcAll() {
     }
     annuals[ag.key] = cum;
 
-    // Update active-month cumulative shown next to input
-    const activeEl = document.getElementById(`cum_${ag.key}_active`);
-    if (activeEl) activeEl.textContent = (cumByMonth[ag.key][ACTIVE_MONTH] || 0).toLocaleString();
+    // Update YTD cumulative cell shown next to quarterly inputs
+    const lastMonthOfQ = QUARTERS[ACTIVE_QUARTER - 1].months[2];
+    const ytdEl = document.getElementById(`cum_${ag.key}_ytd`);
+    if (ytdEl) ytdEl.textContent = (cumByMonth[ag.key][lastMonthOfQ] || 0).toLocaleString();
 
     // Annual + coverage
     const annEl = document.getElementById(`ann_${ag.key}`);
@@ -374,19 +388,11 @@ function renderCharts() {
   const target = getTarget();
   const labels = MONTHS;
 
-  // Collect monthly inputs
-  const monthly = {};
-  document.querySelectorAll('.monthly-input').forEach(inp => {
-    const ag = inp.dataset.ag, m = parseInt(inp.dataset.m);
-    if (!monthly[ag]) monthly[ag] = {};
-    monthly[ag][m] = parseInt(inp.value) || 0;
-  });
-
-  // Build cumulative series per antigen
+  // Build cumulative series per antigen from currentData (all months)
   const cumSeries = CHART_ANTIGENS.map(ag => {
     let cum = 0;
     return MONTHS.map((_, i) => {
-      cum += (monthly[ag.key] && monthly[ag.key][i+1]) || 0;
+      cum += currentData[`${ag.key}_${i + 1}`] || 0;
       return cum;
     });
   });
