@@ -4,8 +4,8 @@
     {
       "name": "EPI System",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["app.py"],
-      "port": 5000
+      "runtimeArgs": ["serve.py"],
+      "autoPort": true
     }
   ]
 }
