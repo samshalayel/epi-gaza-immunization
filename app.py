@@ -369,24 +369,31 @@ def add_sheet_content(ws, fac, year, tp, data):
 
         for m in range(1, 13):
             tc, cc = month_col[m]
-            val = data.get((ag['key'], m), 0)
+            # None for unset months → blank cell (not 0)
+            val = data.get((ag['key'], m), None)
             cell_style(ws, r, tc, val, fill, NRM_FONT, number_format='#,##0')
 
-            # Cumulative formula
+            # Cumulative stops at last entered month (ISBLANK check)
+            mc_ref   = f'{get_column_letter(tc)}{r}'
             if m == 1:
-                cum_formula = f'={get_column_letter(tc)}{r}'
+                cum_formula = f'=IF(ISBLANK({mc_ref}),"",{mc_ref})'
             else:
-                prev_cc = get_column_letter(month_col[m-1][1])
-                cum_formula = f'={prev_cc}{r}+{get_column_letter(tc)}{r}'
+                prev_cc_ref = f'{get_column_letter(month_col[m-1][1])}{r}'
+                cum_formula = (
+                    f'=IF(ISBLANK({mc_ref}),"",IF({prev_cc_ref}="",'
+                    f'{mc_ref},{prev_cc_ref}+{mc_ref}))'
+                )
             cell_style(ws, r, cc, cum_formula, fill, Font(name='Arial', size=9, italic=True),
                        number_format='#,##0')
 
-        # Annual = sum of all Tot columns
-        tot_cols = '+'.join(get_column_letter(month_col[m][0])+str(r) for m in range(1,13))
-        cell_style(ws, r, ANN_COL, f'={tot_cols}', fill, BLD_FONT, number_format='#,##0')
+        # Annual = SUM of monthly cols only (SUM ignores blank cells)
+        tot_sum = 'SUM(' + ','.join(get_column_letter(month_col[m][0])+str(r) for m in range(1,13)) + ')'
+        cell_style(ws, r, ANN_COL, f'={tot_sum}', fill, BLD_FONT, number_format='#,##0')
 
-        # Coverage % = Annual / Target
-        cell_style(ws, r, COV_COL, f'=IF($L$3>0,{get_column_letter(ANN_COL)}{r}/$L$3,0)',
+        # Coverage % = Annual / Target (blank if no data)
+        ann_ref = f'{get_column_letter(ANN_COL)}{r}'
+        cell_style(ws, r, COV_COL,
+                   f'=IF(OR($L$3=0,{tot_sum}=0),"",{ann_ref}/$L$3)',
                    fill, Font(name='Arial', size=9, color='000000'), number_format='0.0%')
 
     # ── Drop-out Rows ──
@@ -407,14 +414,16 @@ def add_sheet_content(ws, fac, year, tp, data):
         ann_num = f'{get_column_letter(ANN_COL)}{num_r}'
         ann_den = f'{get_column_letter(ANN_COL)}{den_r}'
 
-        # Monthly dropout
+        # Monthly dropout — blank if cumulative not yet reached that month
         for m in range(1, 13):
             tc, cc = month_col[m]
-            num_cc = get_column_letter(month_col[m][1])
-            den_cc = get_column_letter(month_col[m][1])
             num_cell = f'{get_column_letter(month_col[m][1])}{num_r}'
             den_cell = f'{get_column_letter(month_col[m][1])}{den_r}'
-            formula_do = f'=IF({num_cell}>0,({num_cell}-{den_cell})/{num_cell},0)'
+            # Show dropout only if num cumulative is present and > 0
+            formula_do = (
+                f'=IF(OR({num_cell}="",{num_cell}=0),"",IF({den_cell}="",1,'
+                f'({num_cell}-{den_cell})/{num_cell}))'
+            )
             do_cell = ws.cell(row=r, column=tc, value=formula_do)
             do_cell.number_format = '0.0%'
             do_cell.fill = fill
@@ -422,8 +431,10 @@ def add_sheet_content(ws, fac, year, tp, data):
             do_cell.border = BORDER
             ws.merge_cells(f'{get_column_letter(tc)}{r}:{get_column_letter(cc)}{r}')
 
-        # Annual dropout
-        do_ann = f'=IF({ann_num}>0,({ann_num}-{ann_den})/{ann_num},0)'
+        # Annual dropout — based on SUM totals (not Dec cumul)
+        ann_num_sum = 'SUM(' + ','.join(get_column_letter(month_col[m][0])+str(num_r) for m in range(1,13)) + ')'
+        ann_den_sum = 'SUM(' + ','.join(get_column_letter(month_col[m][0])+str(den_r) for m in range(1,13)) + ')'
+        do_ann = f'=IF({ann_num_sum}=0,"",({ann_num_sum}-{ann_den_sum})/{ann_num_sum})'
         ann_cell = ws.cell(row=r, column=ANN_COL, value=do_ann)
         ann_cell.number_format = '0.0%'
         ann_cell.fill = fill; ann_cell.font = BLD_FONT; ann_cell.border = BORDER
