@@ -254,9 +254,11 @@ function renderPage() {
 let ACTIVE_QUARTER = 1;
 
 function switchQuarter(q) {
-  // Flush current inputs into currentData BEFORE switching
+  // Flush current inputs into currentData BEFORE switching — blank = delete key
   document.querySelectorAll('.monthly-input').forEach(inp => {
-    currentData[`${inp.dataset.ag}_${inp.dataset.m}`] = parseInt(inp.value) || 0;
+    const raw = inp.value.trim();
+    if (raw !== '') currentData[`${inp.dataset.ag}_${inp.dataset.m}`] = parseInt(raw) || 0;
+    else delete currentData[`${inp.dataset.ag}_${inp.dataset.m}`];
   });
   ACTIVE_QUARTER = q;
   // Update tab styles
@@ -287,7 +289,7 @@ function renderQuarterInputs(q) {
         <td class="p-1">
           <input type="number" class="form-control form-control-sm monthly-input text-center"
             data-ag="${ag.key}" data-m="${m}"
-            value="${currentData[`${ag.key}_${m}`] || 0}" min="0" oninput="recalcAll()">
+            value="${currentData[`${ag.key}_${m}`] ?? ''}" min="0" placeholder="–" oninput="recalcAll()">
         </td>`).join('')}
         <td class="cum-cell text-center fw-semibold align-middle" id="cum_${ag.key}_ytd">0</td>
       </tr>`).join('')}
@@ -310,38 +312,57 @@ function getTarget() {
 }
 
 function recalcAll() {
-  // Save active month input values into currentData
+  // Save active month input values — blank stays blank, not 0
   document.querySelectorAll('.monthly-input').forEach(inp => {
-    currentData[`${inp.dataset.ag}_${inp.dataset.m}`] = parseInt(inp.value) || 0;
+    const raw = inp.value.trim();
+    if (raw !== '') {
+      currentData[`${inp.dataset.ag}_${inp.dataset.m}`] = parseInt(raw) || 0;
+    } else {
+      delete currentData[`${inp.dataset.ag}_${inp.dataset.m}`];
+    }
   });
 
-  // Build full cumulative from currentData
+  // Build cumulative — stop at last entered month
   const cumByMonth = {}, annuals = {};
   const target = getTarget();
 
   ANTIGENS.forEach(ag => {
+    // Find last month with actual data
+    let lastMonth = 0;
+    for (let m = 1; m <= 12; m++) {
+      const v = currentData[`${ag.key}_${m}`];
+      if (v !== undefined && v !== null && v !== '') lastMonth = m;
+    }
+
     let cum = 0;
     cumByMonth[ag.key] = {};
     for (let m = 1; m <= 12; m++) {
-      cum += currentData[`${ag.key}_${m}`] || 0;
-      cumByMonth[ag.key][m] = cum;
-      // Update summary table cumulative cells
       const el = document.getElementById(`cum_${ag.key}_${m}`);
-      if (el) el.textContent = cum.toLocaleString();
+      if (m <= lastMonth) {
+        cum += Number(currentData[`${ag.key}_${m}`]) || 0;
+        cumByMonth[ag.key][m] = cum;
+        if (el) el.textContent = cum.toLocaleString();
+      } else {
+        cumByMonth[ag.key][m] = null;
+        if (el) el.textContent = '–';
+      }
     }
-    annuals[ag.key] = cum;
+    annuals[ag.key] = lastMonth > 0 ? cum : 0;
 
     // Update YTD cumulative cell shown next to quarterly inputs
     const lastMonthOfQ = QUARTERS[ACTIVE_QUARTER - 1].months[2];
     const ytdEl = document.getElementById(`cum_${ag.key}_ytd`);
-    if (ytdEl) ytdEl.textContent = (cumByMonth[ag.key][lastMonthOfQ] || 0).toLocaleString();
+    if (ytdEl) {
+      const ytdVal = cumByMonth[ag.key][lastMonthOfQ];
+      ytdEl.textContent = (ytdVal !== null && ytdVal !== undefined) ? ytdVal.toLocaleString() : '–';
+    }
 
     // Annual + coverage
     const annEl = document.getElementById(`ann_${ag.key}`);
-    if (annEl) annEl.textContent = cum.toLocaleString();
+    if (annEl) annEl.textContent = lastMonth > 0 ? cum.toLocaleString() : '–';
     const covEl = document.getElementById(`cov_${ag.key}`);
     if (covEl) {
-      if (target > 0) {
+      if (target > 0 && lastMonth > 0) {
         const p = (cum / target * 100).toFixed(1);
         covEl.textContent = p + '%';
         covEl.className = 'text-center cov-cell ' + covClass(parseFloat(p));
@@ -512,14 +533,19 @@ function renderCharts() {
 }
 
 async function saveData(){
-  // Flush active month inputs into currentData first
+  // Flush active month inputs into currentData first — blank = delete key
   document.querySelectorAll('.monthly-input').forEach(inp => {
-    currentData[`${inp.dataset.ag}_${inp.dataset.m}`] = parseInt(inp.value) || 0;
+    const raw = inp.value.trim();
+    if (raw !== '') currentData[`${inp.dataset.ag}_${inp.dataset.m}`] = parseInt(raw) || 0;
+    else delete currentData[`${inp.dataset.ag}_${inp.dataset.m}`];
   });
-  // Build monthly_data from currentData (all months)
+  // Build monthly_data — only include months with actual data
   const monthly = {};
   ANTIGENS.forEach(ag => {
-    for (let m = 1; m <= 12; m++) monthly[`${ag.key}_${m}`] = currentData[`${ag.key}_${m}`] || 0;
+    for (let m = 1; m <= 12; m++) {
+      const v = currentData[`${ag.key}_${m}`];
+      if (v !== undefined && v !== null) monthly[`${ag.key}_${m}`] = v;
+    }
   });
   const payload = {
     catchment_pop: parseFloat(document.getElementById('catchPop').value) || 0,
