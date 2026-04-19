@@ -388,11 +388,17 @@ function renderCharts() {
   const target = getTarget();
   const labels = MONTHS;
 
-  // Build cumulative series per antigen from currentData (all months)
+  // Build cumulative series per antigen — stops at last entered month
   const cumSeries = CHART_ANTIGENS.map(ag => {
+    let lastMonth = 0;
+    for (let i = 1; i <= 12; i++) {
+      const v = currentData[`${ag.key}_${i}`];
+      if (v !== undefined && v !== null && v !== '') lastMonth = i;
+    }
     let cum = 0;
     return MONTHS.map((_, i) => {
-      cum += currentData[`${ag.key}_${i + 1}`] || 0;
+      if (i + 1 > lastMonth) return null;
+      cum += Number(currentData[`${ag.key}_${i + 1}`]) || 0;
       return cum;
     });
   });
@@ -400,9 +406,9 @@ function renderCharts() {
   // Target line: linear 0 → target over 12 months
   const targetLine = MONTHS.map((_, i) => Math.round(target * (i + 1) / 12));
 
-  // Coverage % series (cumulative / target * 100)
+  // Coverage % series — null where cumulative is null
   const covSeries = cumSeries.map(series =>
-    series.map(v => target > 0 ? parseFloat((v / target * 100).toFixed(1)) : 0)
+    series.map(v => v === null ? null : (target > 0 ? parseFloat((v / target * 100).toFixed(1)) : 0))
   );
 
   const isRTL = document.documentElement.dir === 'rtl';
@@ -431,6 +437,7 @@ function renderCharts() {
     pointHoverRadius: 5,
     tension: 0.3,
     fill: false,
+    spanGaps: false,
   }));
 
   if (target > 0) {
@@ -474,6 +481,7 @@ function renderCharts() {
     pointHoverRadius: 5,
     tension: 0.3,
     fill: false,
+    spanGaps: false,
   }));
 
   if (chartCov) chartCov.destroy();
