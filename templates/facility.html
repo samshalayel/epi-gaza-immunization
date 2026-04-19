@@ -94,17 +94,16 @@
           <td class="antigen-label fw-semibold">{{ ag['label'] }}</td>
           {% set monthly_vals = [] %}
           {% for m in range(1, 13) %}
-          {% set val = data.get((ag['key'], m), 0) %}
-          {% set _ = monthly_vals.append(val) %}
+          {% set entered = (ag['key'], m) in data %}
+          {% set val    = data[(ag['key'], m)] if entered else '' %}
+          {% set _      = monthly_vals.append(data[(ag['key'], m)] if entered else 0) %}
           <td>
             <input type="number" name="{{ ag['key'] }}_{{ m }}"
                    class="form-control form-control-sm monthly-input text-center p-1"
-                   value="{{ val }}" min="0"
+                   value="{{ val }}" min="0" placeholder="–"
                    data-antigen="{{ ag['key'] }}" data-month="{{ m }}">
           </td>
-          <td class="cum-cell text-center fw-semibold" id="cum_{{ ag['key'] }}_{{ m }}">
-            {{ monthly_vals | sum }}
-          </td>
+          <td class="cum-cell text-center fw-semibold" id="cum_{{ ag['key'] }}_{{ m }}">–</td>
           {% endfor %}
           <td class="text-center fw-bold annual-cell" id="ann_{{ ag['key'] }}">
             {{ data.values() | sum if false else (monthly_vals | sum) }}
@@ -186,98 +185,103 @@ function recalcTarget() {
 CATCH_INPUT.addEventListener('input', () => { recalcTarget(); recalcAll(); });
 SI_INPUT.addEventListener('input',    () => { recalcTarget(); recalcAll(); });
 
-// Collect all monthly inputs into a structure
+// Collect monthly inputs — blank input = month not yet reported
 function getMonthlyData() {
-  const d = {};
+  const d = {}, entered = {};
   document.querySelectorAll('.monthly-input').forEach(inp => {
     const ag = inp.dataset.antigen, m = parseInt(inp.dataset.month);
-    if (!d[ag]) d[ag] = {};
-    d[ag][m] = parseInt(inp.value) || 0;
+    if (!d[ag]) { d[ag] = {}; entered[ag] = {}; }
+    if (inp.value.trim() !== '') {
+      d[ag][m]       = parseInt(inp.value) || 0;
+      entered[ag][m] = true;
+    }
   });
-  return d;
-}
-
-function recalcRow(ag, d) {
-  let cum = 0, annual = 0;
-  for (let m = 1; m <= 12; m++) {
-    const v = (d[ag] && d[ag][m]) || 0;
-    cum += v;
-    annual += v;
-    const el = document.getElementById(`cum_${ag}_${m}`);
-    if (el) el.textContent = cum.toLocaleString();
-  }
-  const annEl = document.getElementById(`ann_${ag}`);
-  if (annEl) annEl.textContent = annual.toLocaleString();
-  return annual;
+  return { d, entered };
 }
 
 function recalcAll() {
-  const d = getMonthlyData();
-  const annuals = {};
-  const cumByMonth = {};
+  const { d, entered } = getMonthlyData();
+  const annuals    = {};
+  const cumByMonth = {}; // null = month not yet entered
 
-  // Per-antigen cumulative values by month
   document.querySelectorAll('#mainTable tbody tr').forEach(tr => {
     const ag = tr.dataset.antigen;
     if (!ag) return;
+
+    // Last month that has been explicitly entered for this antigen
+    let lastMonth = 0;
+    for (let m = 1; m <= 12; m++) {
+      if (entered[ag] && entered[ag][m]) lastMonth = m;
+    }
+
     let cum = 0;
     cumByMonth[ag] = {};
     for (let m = 1; m <= 12; m++) {
-      cum += (d[ag] && d[ag][m]) || 0;
-      cumByMonth[ag][m] = cum;
       const el = document.getElementById(`cum_${ag}_${m}`);
-      if (el) el.textContent = cum.toLocaleString();
+      if (m <= lastMonth) {
+        cum += (d[ag] && d[ag][m]) || 0;
+        cumByMonth[ag][m] = cum;
+        if (el) el.textContent = cum.toLocaleString();
+      } else {
+        cumByMonth[ag][m] = null; // not yet reported
+        if (el) el.textContent = '–';
+      }
     }
-    annuals[ag] = cum;
+
+    annuals[ag] = cum; // sum up to last entered month only
     const annEl = document.getElementById(`ann_${ag}`);
-    if (annEl) annEl.textContent = cum.toLocaleString();
+    if (annEl) annEl.textContent = lastMonth > 0 ? cum.toLocaleString() : '–';
 
     const target = recalcTarget();
-    const covEl = document.getElementById(`cov_${ag}`);
-    if (covEl && target > 0) {
-      const pct = (cum / target * 100).toFixed(1);
-      covEl.textContent = pct + '%';
-      covEl.className = 'text-center cov-cell ' + coverageClass(pct);
+    const covEl  = document.getElementById(`cov_${ag}`);
+    if (covEl) {
+      if (target > 0 && lastMonth > 0) {
+        const pct = (cum / target * 100).toFixed(1);
+        covEl.textContent = pct + '%';
+        covEl.className   = 'text-center cov-cell ' + coverageClass(pct);
+      } else {
+        covEl.textContent = '–';
+        covEl.className   = 'text-center cov-cell';
+      }
     }
   });
 
-  // Drop-out rows
+  // Drop-out rows — only show for months up to last entered
   document.querySelectorAll('#dropoutBody tr').forEach((tr, i) => {
     const numKey = tr.dataset.num, denKey = tr.dataset.den;
     if (!numKey || !denKey) return;
 
-    // Monthly dropout using cumulative
     for (let m = 1; m <= 12; m++) {
-      const numCum = (cumByMonth[numKey] && cumByMonth[numKey][m]) || 0;
-      const denCum = (cumByMonth[denKey] && cumByMonth[denKey][m]) || 0;
+      const numCum = cumByMonth[numKey] && cumByMonth[numKey][m];
+      const denCum = cumByMonth[denKey] && cumByMonth[denKey][m];
       const el = document.getElementById(`do_${i}_${m}`);
-      if (el) {
-        if (numCum > 0) {
-          const pct = ((numCum - denCum) / numCum * 100).toFixed(1);
-          el.textContent = pct + '%';
-          el.className = 'text-center do-month-cell ' + dropoutClass(pct);
-        } else {
-          el.textContent = '–';
-        }
+      if (!el) continue;
+      if (numCum !== null && numCum !== undefined && numCum > 0) {
+        const denVal = (denCum !== null && denCum !== undefined) ? denCum : 0;
+        const pct = ((numCum - denVal) / numCum * 100).toFixed(1);
+        el.textContent = pct + '%';
+        el.className   = 'text-center do-month-cell ' + dropoutClass(pct);
+      } else {
+        el.textContent = '–';
+        el.className   = 'text-center do-month-cell';
       }
     }
 
-    // Annual dropout
     const numAnn = annuals[numKey] || 0, denAnn = annuals[denKey] || 0;
-    const annEl = document.getElementById(`do_ann_${i}`);
-    const stEl  = document.getElementById(`do_status_${i}`);
+    const annEl  = document.getElementById(`do_ann_${i}`);
+    const stEl   = document.getElementById(`do_status_${i}`);
     if (annEl) {
       if (numAnn > 0) {
         const pct = ((numAnn - denAnn) / numAnn * 100).toFixed(1);
         annEl.textContent = pct + '%';
-        annEl.className = 'text-center fw-bold ' + dropoutClass(pct);
+        annEl.className   = 'text-center fw-bold ' + dropoutClass(pct);
         if (stEl) {
           stEl.textContent = parseFloat(pct) > 10 ? '⚠ مرتفع' : '✓ مقبول';
-          stEl.className = 'text-center fw-bold ' + (parseFloat(pct) > 10 ? 'text-danger' : 'text-success');
+          stEl.className   = 'text-center fw-bold ' + (parseFloat(pct) > 10 ? 'text-danger' : 'text-success');
         }
       } else {
         annEl.textContent = '–';
-        if (stEl) stEl.textContent = '–';
+        if (stEl) { stEl.textContent = '–'; stEl.className = 'text-center'; }
       }
     }
   });

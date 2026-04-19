@@ -139,10 +139,17 @@ def facility(fid):
             (fid, year, catchment, si))
         for ag in ANTIGENS:
             for m in range(1, 13):
-                val = int(request.form.get(f"{ag['key']}_{m}", 0) or 0)
-                conn.execute('''INSERT INTO immunization_data (facility_id,year,antigen,month,doses)
-                    VALUES (?,?,?,?,?) ON CONFLICT(facility_id,year,antigen,month) DO UPDATE SET doses=excluded.doses''',
-                    (fid, year, ag['key'], m, val))
+                val_str = request.form.get(f"{ag['key']}_{m}", '').strip()
+                if val_str == '':
+                    # Blank = month not yet reported → remove any existing record
+                    conn.execute(
+                        'DELETE FROM immunization_data WHERE facility_id=? AND year=? AND antigen=? AND month=?',
+                        (fid, year, ag['key'], m))
+                else:
+                    val = int(val_str) if val_str.isdigit() else 0
+                    conn.execute('''INSERT INTO immunization_data (facility_id,year,antigen,month,doses)
+                        VALUES (?,?,?,?,?) ON CONFLICT(facility_id,year,antigen,month) DO UPDATE SET doses=excluded.doses''',
+                        (fid, year, ag['key'], m, val))
         conn.commit()
         conn.close()
         return redirect(url_for('facility', fid=fid, year=year, saved=1))
