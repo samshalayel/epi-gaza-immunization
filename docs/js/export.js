@@ -129,12 +129,24 @@ function buildSheet(fac, year, d, chartImages) {
 
     ws[ec(r,0)] = mkCell(ag.label, fill, S.bldFont, S.lft);
 
+    // Find last entered month — don't continue past it
+    let lastMonth = 0;
+    for (let m = 1; m <= 12; m++) {
+      const v = d[`${ag.key}_${m}`];
+      if (v !== undefined && v !== null && v !== '') lastMonth = m;
+    }
+
     let cum = 0, annual = 0;
     for (let m = 1; m <= 12; m++) {
-      const v = d[`${ag.key}_${m}`] || 0;
-      cum += v; annual += v;
-      ws[ec(r, mCol[m].tot)] = mkCell(v,   fill, S.nrmFont, S.ctr, '#,##0');
-      ws[ec(r, mCol[m].cum)] = mkCell(cum, fill, S.itaFont, S.ctr, '#,##0');
+      if (m <= lastMonth) {
+        const v = Number(d[`${ag.key}_${m}`]) || 0;
+        cum += v; annual += v;
+        ws[ec(r, mCol[m].tot)] = mkCell(v,   fill, S.nrmFont, S.ctr, '#,##0');
+        ws[ec(r, mCol[m].cum)] = mkCell(cum, fill, S.itaFont, S.ctr, '#,##0');
+      } else {
+        ws[ec(r, mCol[m].tot)] = mkCell('', fill, S.nrmFont, S.ctr);
+        ws[ec(r, mCol[m].cum)] = mkCell('', fill, S.itaFont, S.ctr);
+      }
     }
     annuals[ag.key] = annual;
 
@@ -167,14 +179,24 @@ function buildSheet(fac, year, d, chartImages) {
 
     ws[ec(r,0)] = mkCell(drp.label, fill, S.bldFont, S.lft);
 
-    // per-month cumulative dropout
+    // per-month cumulative dropout — stop at last entered month for numerator
+    let lastMonthNum = 0;
+    for (let m = 1; m <= 12; m++) {
+      const v = d[`${drp.num}_${m}`];
+      if (v !== undefined && v !== null && v !== '') lastMonthNum = m;
+    }
+
     let cumNum = 0, cumDen = 0;
     for (let m = 1; m <= 12; m++) {
-      cumNum += d[`${drp.num}_${m}`] || 0;
-      cumDen += d[`${drp.den}_${m}`] || 0;
-      const pct = cumNum > 0 ? (cumNum - cumDen) / cumNum : 0;
       const tc = mCol[m].tot, cc = mCol[m].cum;
-      ws[ec(r,tc)] = mkCell(cumNum > 0 ? pct : '', fill, S.nrmFont, S.ctr, '0.0%');
+      if (m <= lastMonthNum) {
+        cumNum += Number(d[`${drp.num}_${m}`]) || 0;
+        cumDen += Number(d[`${drp.den}_${m}`]) || 0;
+        const pct = cumNum > 0 ? (cumNum - cumDen) / cumNum : 0;
+        ws[ec(r,tc)] = mkCell(cumNum > 0 ? pct : '', fill, S.nrmFont, S.ctr, '0.0%');
+      } else {
+        ws[ec(r,tc)] = mkCell('', fill, S.nrmFont, S.ctr);
+      }
       ws[ec(r,cc)] = mkCell('', fill, S.nrmFont, S.ctr);
       merges.push({ s:{r,c:tc}, e:{r,c:cc} });
     }
