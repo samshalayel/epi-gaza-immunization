@@ -331,7 +331,7 @@ function recalcAll() {
     let lastMonth = 0;
     for (let m = 1; m <= 12; m++) {
       const v = currentData[`${ag.key}_${m}`];
-      if (v !== undefined && v !== null && v !== '') lastMonth = m;
+      if (v !== undefined && v !== null && v !== '' && Number(v) > 0) lastMonth = m;
     }
 
     let cum = 0;
@@ -414,7 +414,7 @@ function renderCharts() {
     let lastMonth = 0;
     for (let i = 1; i <= 12; i++) {
       const v = currentData[`${ag.key}_${i}`];
-      if (v !== undefined && v !== null && v !== '') lastMonth = i;
+      if (v !== undefined && v !== null && v !== '' && Number(v) > 0) lastMonth = i;
     }
     let cum = 0;
     return MONTHS.map((_, i) => {
@@ -539,12 +539,12 @@ async function saveData(){
     if (raw !== '') currentData[`${inp.dataset.ag}_${inp.dataset.m}`] = parseInt(raw) || 0;
     else delete currentData[`${inp.dataset.ag}_${inp.dataset.m}`];
   });
-  // Build monthly_data — only include months with actual data
+  // Build monthly_data — only include months with value > 0
   const monthly = {};
   ANTIGENS.forEach(ag => {
     for (let m = 1; m <= 12; m++) {
       const v = currentData[`${ag.key}_${m}`];
-      if (v !== undefined && v !== null) monthly[`${ag.key}_${m}`] = v;
+      if (v !== undefined && v !== null && Number(v) > 0) monthly[`${ag.key}_${m}`] = v;
     }
   });
   const payload = {

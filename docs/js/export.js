@@ -133,7 +133,7 @@ function buildSheet(fac, year, d, chartImages) {
     let lastMonth = 0;
     for (let m = 1; m <= 12; m++) {
       const v = d[`${ag.key}_${m}`];
-      if (v !== undefined && v !== null && v !== '') lastMonth = m;
+      if (v !== undefined && v !== null && v !== '' && Number(v) > 0) lastMonth = m;
     }
 
     let cum = 0, annual = 0;
