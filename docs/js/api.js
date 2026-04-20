@@ -30,4 +30,9 @@ const api = {
   getStock:  (facId, year, month) => apiFetch(`/stock/${facId}/${year}/${month}`),
   saveStock: (facId, year, month, data) => apiFetch(`/stock/${facId}/${year}/${month}`, { method:'POST', body: JSON.stringify(data) }),
   getStockYear: (facId, year)     => apiFetch(`/stock/${facId}/${year}`),
+
+  // Forecast / Annual Planning
+  getForecast:    (facId, year)       => apiFetch(`/forecast/${facId}/${year}`),
+  saveForecast:   (facId, year, data) => apiFetch(`/forecast/${facId}/${year}`, { method:'POST', body: JSON.stringify(data) }),
+  getAllForecasts: (year)             => apiFetch(`/forecast/${year}`),
 };

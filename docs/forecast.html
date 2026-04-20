@@ -342,6 +342,16 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <script src="js/api.js"></script>
 <script>
+// ─── Forecast API methods (inline — works even with old api.js) ───────────
+(function(){
+  const B = 'https://sillar.uk/api';
+  const h = {'Content-Type':'application/json','Accept':'application/json'};
+  if (!window.api) window.api = {};
+  api.getForecast    = (fid,yr)      => fetch(`${B}/forecast/${fid}/${yr}`,{headers:h}).then(r=>r.status===204?null:r.json());
+  api.saveForecast   = (fid,yr,data) => fetch(`${B}/forecast/${fid}/${yr}`,{method:'POST',headers:h,body:JSON.stringify(data)}).then(r=>{if(!r.ok)throw new Error(r.status);return r.json();});
+  api.getAllForecasts = (yr)          => fetch(`${B}/forecast/${yr}`,{headers:h}).then(r=>r.json());
+})();
+
 // ─── Cold Chain Equipment ─────────────────────────────────────────────────
 const CC_TYPES = ['Refrigerator','Deep Freezer','Vaccine Carrier','Cold Box'];
 
@@ -602,13 +612,16 @@ function onFacilityChange() {
   if (selectedFacility) {
     document.getElementById('clinicGov').value  = selectedFacility.governorate || '';
     document.getElementById('clinicType').value = (selectedFacility.type || '') + (selectedFacility.provider ? ' – ' + selectedFacility.provider : '');
+    // load existing forecast from DB
+    const year = document.getElementById('clinicPeriod').value || '2026';
+    loadForecastForFacility(selectedFacility.id, year);
   } else {
     document.getElementById('clinicGov').value  = '';
     document.getElementById('clinicType').value = '';
   }
 }
 
-// ─── Save to localStorage ──────────────────────────────────────────────────
+// ─── Collect form data ─────────────────────────────────────────────────────
 function getFormData() {
   const sel = document.getElementById('facilitySelect');
   const data = {
@@ -633,24 +646,86 @@ function getFormData() {
   return data;
 }
 
-function saveForm() {
+// ─── Save: API first, localStorage fallback ────────────────────────────────
+async function saveForm() {
   const data = getFormData();
-  const key = `forecast_${data.clinic||'unnamed'}_${data.period}`;
-  localStorage.setItem(key, JSON.stringify(data));
-  showToast('Saved to browser storage ✓');
+  const year = data.period || '2026';
+
+  if (data.facId) {
+    // Save to API
+    const saveBtn = document.querySelector('button[onclick="saveForm()"]');
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Saving…'; }
+    try {
+      await api.saveForecast(data.facId, year, {
+        target_population: parseInt(data.pop) || 0,
+        date:       data.date,
+        soh:        data.soh,
+        cold_chain: data.coldChain,
+        equipment:  data.equip,
+        notes:      data.notes,
+      });
+      showToast('✓ Saved to database');
+    } catch(e) {
+      console.error('API save failed:', e);
+      // fallback to localStorage
+      localStorage.setItem(`forecast_${data.facId}_${year}`, JSON.stringify(data));
+      showToast('⚠ Saved locally (server unreachable)', 'warning');
+    } finally {
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = '<i class="bi bi-save2-fill"></i> Save Form / حفظ'; }
+    }
+  } else {
+    // No facility selected — save to localStorage only
+    localStorage.setItem(`forecast_unnamed_${year}`, JSON.stringify(data));
+    showToast('Saved locally (no clinic selected)');
+  }
 }
 
-function loadForm() {
-  // try to restore last saved
-  const keys = Object.keys(localStorage).filter(k => k.startsWith('forecast_'));
-  if (!keys.length) return;
-  const data = JSON.parse(localStorage.getItem(keys[keys.length-1]));
-  if (!data) return;
-  if (data.facId) {
-    const sel = document.getElementById('facilitySelect');
-    if (sel) { sel.value = data.facId; onFacilityChange(); }
+// ─── Load from API (called when facility changes) ──────────────────────────
+async function loadForecastForFacility(facId, year) {
+  try {
+    const rec = await api.getForecast(facId, year);
+    if (!rec || !rec.id) return; // no record yet
+
+    // populate fields from DB record
+    if (rec.target_population) document.getElementById('targetPop').value = rec.target_population;
+    if (rec.date)               document.getElementById('clinicDate').value = rec.date;
+    if (rec.notes)              document.getElementById('formNotes').value  = rec.notes;
+
+    const soh = rec.soh || {};
+    Object.entries(soh).forEach(([i, v]) => {
+      const el = document.getElementById(`soh_${i}`);
+      if (el) el.value = v;
+    });
+
+    const equip = rec.equipment || {};
+    Object.entries(equip).forEach(([k, v]) => {
+      const el = document.querySelector(`.equip-input[data-key="${k}"]`);
+      if (el) el.value = v;
+    });
+
+    const cc = rec.cold_chain;
+    if (Array.isArray(cc) && cc.length) {
+      coldChainRows = cc;
+      renderColdChain();
+    }
+
+    recalcAll();
+    showToast('↓ Loaded from database', 'info');
+  } catch(e) {
+    // 404 means no record yet — silently ignore, try localStorage fallback
+    const local = localStorage.getItem(`forecast_${facId}_${year}`);
+    if (local) {
+      try {
+        const data = JSON.parse(local);
+        applyFormData(data);
+        showToast('↓ Loaded from local storage (no server record)', 'info');
+      } catch(_) {}
+    }
   }
-  document.getElementById('clinicGov').value    = data.gov     || '';
+}
+
+function applyFormData(data) {
+  if (!data) return;
   document.getElementById('clinicPeriod').value = data.period  || '2026';
   document.getElementById('clinicDate').value   = data.date    || '';
   document.getElementById('targetPop').value    = data.pop     || 1200;
@@ -670,6 +745,10 @@ function loadForm() {
   recalcAll();
 }
 
+function loadForm() {
+  // Called on init — nothing to load until a facility is selected
+}
+
 function clearForm() {
   if (!confirm('Clear all data?')) return;
   const sel = document.getElementById('facilitySelect');
@@ -683,11 +762,13 @@ function clearForm() {
   recalcAll();
 }
 
-function showToast(msg) {
-  const t = document.getElementById('toast');
-  document.getElementById('toastMsg').textContent = msg;
+function showToast(msg, type) {
+  const t   = document.getElementById('toast');
+  const box = document.getElementById('toastMsg');
+  box.textContent = msg;
+  box.className = `alert shadow py-2 px-4 mb-0 alert-${type==='warning'?'warning':type==='info'?'info':'success'}`;
   t.style.display = 'block';
-  setTimeout(() => t.style.display = 'none', 2500);
+  setTimeout(() => t.style.display = 'none', 2800);
 }
 
 // ─── Export Excel (SheetJS) ────────────────────────────────────────────────

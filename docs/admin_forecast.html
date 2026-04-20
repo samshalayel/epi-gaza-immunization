@@ -359,32 +359,54 @@ function recalcRef() {
   recalcAggregate();
 }
 
-// ─── Aggregate across all facilities ─────────────────────────────────────
+// ─── Aggregate across all facilities (uses API data) ─────────────────────
+let forecastRecords = []; // loaded from API
+
+async function loadAllForecasts(year) {
+  try {
+    forecastRecords = await api.getAllForecasts(year);
+  } catch(e) {
+    forecastRecords = [];
+  }
+  recalcAggregate();
+}
+
 function recalcAggregate() {
   if (!facilities.length) return;
   const body = document.getElementById('aggregateBody');
   const foot = document.getElementById('aggregateFoot');
 
-  // total pop = sum of all facilities' stored target population (from localStorage per facility)
-  // We use the system-wide default: 1200 per facility if not customized
-  // (forecasts store pop per clinic in localStorage as forecast_{clinic}_{period})
+  // Build a map facId → target_population from API records
+  const popMap = {};
+  forecastRecords.forEach(r => {
+    if (r.facility_id && r.target_population) popMap[r.facility_id] = r.target_population;
+  });
+
+  // SOH per vaccine from API (sum across all facilities)
+  const sohMap = {}; // key index → total vials in SOH
+  forecastRecords.forEach(r => {
+    const soh = r.soh || {};
+    Object.entries(soh).forEach(([i, v]) => {
+      sohMap[i] = (sohMap[i] || 0) + (parseInt(v) || 0);
+    });
+  });
+
+  // total pop: use API data if available, else default 1200 per facility
   const totalPop = facilities.reduce((sum, f) => {
-    const key = Object.keys(localStorage).find(k => k.startsWith(`forecast_`) && k.includes(f.name));
-    if (key) {
-      try { const d = JSON.parse(localStorage.getItem(key)); return sum + (parseInt(d.pop)||0); } catch(e) {}
-    }
-    return sum + 1200; // default
+    return sum + (popMap[f.id] || 1200);
   }, 0);
 
   document.getElementById('statFacilities').textContent = facilities.length;
   document.getElementById('statPop').textContent = totalPop.toLocaleString();
 
-  let grandVials = 0, grandCost = 0;
-  const rows = settings.vaccines.map(v => {
+  let grandVials = 0, grandReq = 0, grandCost = 0;
+  const rows = settings.vaccines.map((v, i) => {
     const vials = Math.ceil(totalPop * v.dc * v.waste / v.vial);
-    const cost  = vials * v.price;
-    grandVials += vials; grandCost += cost;
-    return {v, vials, cost};
+    const soh   = sohMap[i] || 0;
+    const req   = Math.max(0, vials - soh);
+    const cost  = req * v.price;
+    grandVials += vials; grandReq += req; grandCost += cost;
+    return {v, vials, soh, req, cost};
   });
 
   body.innerHTML = rows.map((r, i) => `
@@ -392,7 +414,7 @@ function recalcAggregate() {
       <td class="vac-name">${r.v.en}</td>
       <td class="agg-val">${totalPop.toLocaleString()}</td>
       <td class="agg-val">${r.vials.toLocaleString()}</td>
-      <td class="agg-val" style="color:#E65100">${r.vials.toLocaleString()}</td>
+      <td class="agg-val" style="color:#E65100">${r.req.toLocaleString()}</td>
       <td class="agg-val" style="color:#1B5E20">$${r.cost.toFixed(0)}</td>
     </tr>`).join('');
 
@@ -401,13 +423,13 @@ function recalcAggregate() {
       <td>TOTAL</td>
       <td class="text-center">${totalPop.toLocaleString()}</td>
       <td class="text-center">${grandVials.toLocaleString()}</td>
-      <td class="text-center">${grandVials.toLocaleString()}</td>
+      <td class="text-center">${grandReq.toLocaleString()}</td>
       <td class="text-center">$${grandCost.toFixed(0)}</td>
     </tr>`;
 
   document.getElementById('aggregateTable').style.display = '';
   document.getElementById('aggregateMsg').style.display   = 'none';
-  document.getElementById('statVials').textContent = grandVials.toLocaleString();
+  document.getElementById('statVials').textContent = grandReq.toLocaleString();
   document.getElementById('statCost').textContent  = '$' + Math.round(grandCost).toLocaleString();
 }
 
@@ -452,11 +474,12 @@ function showToast(msg) {
   setTimeout(() => t.style.display = 'none', 3000);
 }
 
-// ─── Load facilities ──────────────────────────────────────────────────────
+// ─── Load facilities + forecasts ─────────────────────────────────────────
 async function loadFacilities() {
   try {
     facilities = await api.getFacilities();
-    recalcAggregate();
+    // load all forecasts for 2026 to populate aggregate
+    await loadAllForecasts('2026');
   } catch(e) {
     document.getElementById('aggregateMsg').innerHTML =
       '<span class="text-danger">⚠ Could not load facilities from server.</span>';
