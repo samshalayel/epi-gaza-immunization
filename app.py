@@ -34,25 +34,17 @@ ANTIGENS = [
 ]
 
 STOCK_VACCINES = [
-    {'key': 'BCG',    'label': 'BCG',              'vial': 20},
-    {'key': 'HepB0',  'label': 'HepB (Birth)',      'vial': 10},
-    {'key': 'OPV0',   'label': 'OPV 0 (Birth)',     'vial': 10},
-    {'key': 'Penta1', 'label': 'Penta 1',           'vial': 10},
-    {'key': 'Penta2', 'label': 'Penta 2',           'vial': 10},
-    {'key': 'Penta3', 'label': 'Penta 3',           'vial': 10},
-    {'key': 'OPV1',   'label': 'OPV 1',             'vial': 10},
-    {'key': 'OPV2',   'label': 'OPV 2',             'vial': 10},
-    {'key': 'OPV3',   'label': 'OPV 3',             'vial': 10},
-    {'key': 'IPV',    'label': 'IPV',               'vial': 5},
-    {'key': 'PCV1',   'label': 'PCV 1',             'vial': 5},
-    {'key': 'PCV2',   'label': 'PCV 2',             'vial': 5},
-    {'key': 'PCV3',   'label': 'PCV 3',             'vial': 5},
-    {'key': 'Rota1',  'label': 'Rotavirus 1',       'vial': 5},
-    {'key': 'Rota2',  'label': 'Rotavirus 2',       'vial': 5},
-    {'key': 'MR1',    'label': 'MR 1 (MMR1)',       'vial': 1},
-    {'key': 'MR2',    'label': 'MR 2 (MMR2)',       'vial': 1},
-    {'key': 'VitA1',  'label': 'Vit A (1st)',       'vial': 1},
-    {'key': 'VitA2',  'label': 'Vit A (2nd)',       'vial': 1},
+    {'key': 'BCG',   'label': 'BCG (20 جرعة/فيال)',                   'label_en': 'BCG (20 doses/vial)',                     'vial': 20},
+    {'key': 'HepB',  'label': 'التهاب الكبد B (10 جرعة/فيال)',        'label_en': 'HepB Pediatric (10 doses/vial)',           'vial': 10},
+    {'key': 'IPV',   'label': 'شلل الأطفال المحقون IPV (5 جرعة)',     'label_en': 'Inactivated Polio IPV (5 doses/vial)',     'vial': 5},
+    {'key': 'bOPV',  'label': 'شلل الأطفال الفموي bOPV (10 جرعة)',    'label_en': 'Oral Polio bOPV (10 doses/vial)',          'vial': 10},
+    {'key': 'Penta', 'label': 'الخماسي DTP-HepB-Hib (10 جرعة)',       'label_en': 'Pentavalent DTP-HepB-Hib (10 doses/vial)', 'vial': 10},
+    {'key': 'Rota',  'label': 'الروتا Rotavac 2.5ml (5 جرعة)',        'label_en': 'Rotavirus Rotavac 2.5ml (5 doses/vial)',   'vial': 5},
+    {'key': 'PCV',   'label': 'المكورات الرئوية PCV10 (5 جرعة)',      'label_en': 'Pneumococcal PCV10 (5 doses/vial)',        'vial': 5},
+    {'key': 'MMR',   'label': 'الحصبة والحصبة الألمانية MMR (1 جرعة)','label_en': 'MMR (1 dose/vial)',                       'vial': 1},
+    {'key': 'DTP18', 'label': 'ثلاثي DTP منشط (18 شهر، 10 جرعة)',     'label_en': 'DTP Booster 18m (10 doses/vial)',          'vial': 10},
+    {'key': 'DT6',   'label': 'ثنائي DT (6 سنوات، 10 جرعة)',          'label_en': 'DT 6 years (10 doses/vial)',               'vial': 10},
+    {'key': 'Td15',  'label': 'Td (15 سنة، 10 جرعة)',                  'label_en': 'Td 15 years (10 doses/vial)',              'vial': 10},
 ]
 
 # Drop-out definitions: (label, numerator_key, denominator_key)

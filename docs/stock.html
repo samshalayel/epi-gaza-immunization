@@ -56,25 +56,17 @@ const MONTHS_AR = ['يناير','فبراير','مارس','أبريل','مايو
                    'يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
 
 const STOCK_VACCINES = [
-  {key:'BCG',    label:'BCG',            vial:20},
-  {key:'HepB0',  label:'HepB (Birth)',   vial:10},
-  {key:'OPV0',   label:'OPV 0 (Birth)',  vial:10},
-  {key:'Penta1', label:'Penta 1',        vial:10},
-  {key:'Penta2', label:'Penta 2',        vial:10},
-  {key:'Penta3', label:'Penta 3',        vial:10},
-  {key:'OPV1',   label:'OPV 1',          vial:10},
-  {key:'OPV2',   label:'OPV 2',          vial:10},
-  {key:'OPV3',   label:'OPV 3',          vial:10},
-  {key:'IPV',    label:'IPV',            vial:5},
-  {key:'PCV1',   label:'PCV 1',          vial:5},
-  {key:'PCV2',   label:'PCV 2',          vial:5},
-  {key:'PCV3',   label:'PCV 3',          vial:5},
-  {key:'Rota1',  label:'Rotavirus 1',    vial:5},
-  {key:'Rota2',  label:'Rotavirus 2',    vial:5},
-  {key:'MR1',    label:'MR 1 (MMR1)',    vial:1},
-  {key:'MR2',    label:'MR 2 (MMR2)',    vial:1},
-  {key:'VitA1',  label:'Vit A (1st)',    vial:1},
-  {key:'VitA2',  label:'Vit A (2nd)',    vial:1},
+  {key:'BCG',   labelAr:'BCG',                           labelEn:'BCG (20 doses/vial)',                    vial:20},
+  {key:'HepB',  labelAr:'التهاب الكبد B (أطفال)',        labelEn:'HepB Pediatric (10 doses/vial)',          vial:10},
+  {key:'IPV',   labelAr:'شلل الأطفال المحقون (IPV)',     labelEn:'Inactivated Polio IPV (5 doses/vial)',    vial:5},
+  {key:'bOPV',  labelAr:'شلل الأطفال الفموي (bOPV)',     labelEn:'Oral Polio bOPV (10 doses/vial)',         vial:10},
+  {key:'Penta', labelAr:'الخماسي (DTP-HepB-Hib)',        labelEn:'Pentavalent DTP-HepB-Hib (10 doses/vial)',vial:10},
+  {key:'Rota',  labelAr:'فيروس الروتا (Rotavac)',        labelEn:'Rotavirus Rotavac 2.5ml (5 doses/vial)',  vial:5},
+  {key:'PCV',   labelAr:'المكورات الرئوية (PCV10)',      labelEn:'Pneumococcal PCV10 (5 doses/vial)',       vial:5},
+  {key:'MMR',   labelAr:'الحصبة والحصبة الألمانية (MMR)', labelEn:'MMR (1 dose/vial)',                    vial:1},
+  {key:'DTP18', labelAr:'ثلاثي DTP (18 شهر)',            labelEn:'DTP Booster 18m (10 doses/vial)',         vial:10},
+  {key:'DT6',   labelAr:'ثنائي DT (6 سنوات)',            labelEn:'DT 6 years (10 doses/vial)',              vial:10},
+  {key:'Td15',  labelAr:'Td (15 سنة)',                   labelEn:'Td 15 years (10 doses/vial)',             vial:10},
 ];
 
 function toggleLang() {
@@ -211,7 +203,7 @@ function renderPage() {
             return `
             <tr class="${rowClass}" data-key="${v.key}">
               <td class="antigen-label fw-semibold">
-                ${v.label}
+                ${lang==='ar' ? v.labelAr : v.labelEn}
                 <small class="text-muted d-block" style="font-size:.7rem">${lang==='ar'?'فيال':'vial'} ${v.vial} ${lang==='ar'?'جرعة':'doses'}</small>
               </td>
               <td class="p-1" title="${isAuto?(lang==='ar'?'تلقائي من الشهر السابق':'Auto from prev month'):''}">
@@ -390,7 +382,7 @@ function exportStock() {
     const d = stockData[v.key]||{};
     const o=d.opening??null, rc=d.received??null, a=d.administered??null, w=d.wastage??null;
     const cl = (o!==null||rc!==null||a!==null||w!==null) ? (o||0)+(rc||0)-(a||0)-(w||0) : null;
-    ws[ec(r,0)]=mk(v.label,fill,S.bld,S.lft);
+    ws[ec(r,0)]=mk(getLang()==='ar'?v.labelAr:v.labelEn,fill,S.bld,S.lft);
     [o,rc,a,w,cl].forEach((val,j)=>{
       const cell=mk(val??'',fill,j===4?{...S.bld,color:{rgb:cl<0?'FFFF0000':cl===0?'FFFF9900':'FF00B050'}}:S.nrm,S.ctr,'#,##0');
       ws[ec(r,j+1)]=cell;
