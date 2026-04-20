@@ -33,6 +33,28 @@ ANTIGENS = [
     {'key': 'VitA2',  'label': 'Vit A (2nd)', 'color': '#fff0cc'},
 ]
 
+STOCK_VACCINES = [
+    {'key': 'BCG',    'label': 'BCG',              'vial': 20},
+    {'key': 'HepB0',  'label': 'HepB (Birth)',      'vial': 10},
+    {'key': 'OPV0',   'label': 'OPV 0 (Birth)',     'vial': 10},
+    {'key': 'Penta1', 'label': 'Penta 1',           'vial': 10},
+    {'key': 'Penta2', 'label': 'Penta 2',           'vial': 10},
+    {'key': 'Penta3', 'label': 'Penta 3',           'vial': 10},
+    {'key': 'OPV1',   'label': 'OPV 1',             'vial': 10},
+    {'key': 'OPV2',   'label': 'OPV 2',             'vial': 10},
+    {'key': 'OPV3',   'label': 'OPV 3',             'vial': 10},
+    {'key': 'IPV',    'label': 'IPV',               'vial': 5},
+    {'key': 'PCV1',   'label': 'PCV 1',             'vial': 5},
+    {'key': 'PCV2',   'label': 'PCV 2',             'vial': 5},
+    {'key': 'PCV3',   'label': 'PCV 3',             'vial': 5},
+    {'key': 'Rota1',  'label': 'Rotavirus 1',       'vial': 5},
+    {'key': 'Rota2',  'label': 'Rotavirus 2',       'vial': 5},
+    {'key': 'MR1',    'label': 'MR 1 (MMR1)',       'vial': 1},
+    {'key': 'MR2',    'label': 'MR 2 (MMR2)',       'vial': 1},
+    {'key': 'VitA1',  'label': 'Vit A (1st)',       'vial': 1},
+    {'key': 'VitA2',  'label': 'Vit A (2nd)',       'vial': 1},
+]
+
 # Drop-out definitions: (label, numerator_key, denominator_key)
 DROPOUTS = [
     ('Dropout 1: Penta1→Penta3',  'Penta1', 'Penta3'),
@@ -66,6 +88,13 @@ def init_db():
         antigen TEXT, month INTEGER,
         doses INTEGER DEFAULT 0,
         UNIQUE(facility_id, year, antigen, month)
+    )''')
+    c.execute('''CREATE TABLE IF NOT EXISTS stock_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        facility_id INTEGER, year INTEGER, month INTEGER,
+        antigen TEXT,
+        opening INTEGER, received INTEGER, administered INTEGER, wastage INTEGER,
+        UNIQUE(facility_id, year, month, antigen)
     )''')
     conn.commit()
     # Import facilities if table is empty
@@ -475,6 +504,53 @@ def add_sheet_content(ws, fac, year, tp, data):
     ws.column_dimensions[get_column_letter(COV_COL)].width = 12
     ws.row_dimensions[1].height = 22
     ws.freeze_panes = f'B{DATA_START}'
+
+@app.route('/stock/<int:fid>', methods=['GET', 'POST'])
+def stock(fid):
+    year  = request.args.get('year',  2026, type=int)
+    month = request.args.get('month', 1,    type=int)
+    conn  = get_db()
+    fac   = conn.execute('SELECT * FROM facilities WHERE id=?', (fid,)).fetchone()
+    if not fac:
+        conn.close()
+        return redirect(url_for('index'))
+
+    if request.method == 'POST':
+        year  = int(request.form.get('year',  2026))
+        month = int(request.form.get('month', 1))
+        for v in STOCK_VACCINES:
+            k = v['key']
+            def fi(field):
+                s = request.form.get(f'{k}_{field}', '').strip()
+                return int(s) if s.isdigit() else None
+            opening = fi('opening'); received = fi('received')
+            administered = fi('administered'); wastage = fi('wastage')
+            # Only save if at least one field filled
+            if any(x is not None for x in [opening, received, administered, wastage]):
+                conn.execute('''INSERT INTO stock_log
+                    (facility_id,year,month,antigen,opening,received,administered,wastage)
+                    VALUES (?,?,?,?,?,?,?,?)
+                    ON CONFLICT(facility_id,year,month,antigen) DO UPDATE SET
+                    opening=excluded.opening, received=excluded.received,
+                    administered=excluded.administered, wastage=excluded.wastage''',
+                    (fid, year, month, k, opening, received, administered, wastage))
+            else:
+                conn.execute('DELETE FROM stock_log WHERE facility_id=? AND year=? AND month=? AND antigen=?',
+                             (fid, year, month, k))
+        conn.commit()
+        conn.close()
+        return redirect(url_for('stock', fid=fid, year=year, month=month, saved=1))
+
+    rows = conn.execute(
+        'SELECT antigen,opening,received,administered,wastage FROM stock_log WHERE facility_id=? AND year=? AND month=?',
+        (fid, year, month)).fetchall()
+    conn.close()
+    data = {r['antigen']: r for r in rows}
+    saved = request.args.get('saved', 0)
+    return render_template('stock.html', fac=fac, year=year, month=month,
+                           vaccines=STOCK_VACCINES, months=MONTHS, months_ar=MONTHS_AR,
+                           data=data, saved=saved)
+
 
 if __name__ == '__main__':
     init_db()

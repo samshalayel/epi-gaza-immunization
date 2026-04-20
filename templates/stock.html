@@ -1,0 +1,214 @@
+{% extends 'base.html' %}
+{% block title %}سجل المخزون – {{ fac['name'] }}{% endblock %}
+{% block content %}
+
+{% if saved %}
+<div class="alert alert-success alert-dismissible fade show">
+  <i class="bi bi-check-circle-fill"></i> تم حفظ بيانات المخزون بنجاح
+  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<!-- Header -->
+<div class="d-flex align-items-center gap-3 mb-3 flex-wrap">
+  <a href="/facility/{{ fac['id'] }}?year={{ year }}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-right"></i> التطعيم
+  </a>
+  <div>
+    <h5 class="mb-0"><i class="bi bi-hospital-fill text-primary"></i> {{ fac['name'] }}</h5>
+    <small class="text-muted">{{ fac['governorate'] }} | {{ fac['type'] }} | {{ fac['provider'] }}</small>
+  </div>
+  <span class="badge bg-info ms-1 fs-6"><i class="bi bi-boxes"></i> سجل المخزون الشهري</span>
+</div>
+
+<form method="post">
+<!-- Month / Year selector -->
+<div class="card mb-3 shadow-sm">
+  <div class="card-header section-header">
+    <i class="bi bi-calendar3"></i> اختر الشهر والسنة
+  </div>
+  <div class="card-body">
+    <div class="row g-3 align-items-end">
+      <div class="col-6 col-md-2">
+        <label class="form-label fw-bold">السنة</label>
+        <select name="year" class="form-select" id="yearSel">
+          {% for y in range(2020,2031) %}
+          <option value="{{ y }}" {% if y==year %}selected{% endif %}>{{ y }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-6 col-md-3">
+        <label class="form-label fw-bold">الشهر</label>
+        <select name="month" class="form-select" id="monthSel">
+          {% for i in range(1,13) %}
+          <option value="{{ i }}" {% if i==month %}selected{% endif %}>{{ months_ar[i-1] }} ({{ months[i-1] }})</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-primary w-100">
+          <i class="bi bi-save2-fill"></i> حفظ البيانات
+        </button>
+      </div>
+      <div class="col-md-5 text-muted" style="font-size:.85rem">
+        <i class="bi bi-info-circle"></i>
+        الإغلاق = الافتتاحي + الوارد − المعطى − الهدر
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Stock Table -->
+<div class="card shadow-sm mb-3">
+  <div class="card-header section-header d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-boxes"></i> حركة المخزون – {{ months_ar[month-1] }} {{ year }}</span>
+    <small class="text-white opacity-75">الخلايا الصفراء = إدخال | الإغلاق = محسوب تلقائياً</small>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-bordered table-sm mb-0" id="stockTable" style="font-size:.83rem;min-width:900px">
+      <thead>
+        <tr class="table-header-row">
+          <th class="antigen-col" rowspan="2">اللقاح</th>
+          <th class="text-center" style="background:#3ABCD8!important">الافتتاحي<br><small style="font-weight:normal;opacity:.85">جرعات</small></th>
+          <th class="text-center" style="background:#2196F3!important">الوارد<br><small style="font-weight:normal;opacity:.85">جرعات</small></th>
+          <th class="text-center" style="background:#4CAF50!important">المعطى<br><small style="font-weight:normal;opacity:.85">جرعات</small></th>
+          <th class="text-center" style="background:#FF9800!important">الهدر<br><small style="font-weight:normal;opacity:.85">جرعات</small></th>
+          <th class="text-center annual-col" rowspan="2">الإغلاق<br><small style="font-weight:normal;opacity:.85">محسوب</small></th>
+          <th class="text-center" style="background:#9C27B0!important;color:#fff" rowspan="2">حالة<br>المخزون</th>
+        </tr>
+        <tr class="table-subheader-row">
+          <th class="subh" style="background:#3ABCD8!important">أول الشهر</th>
+          <th class="subh" style="background:#2196F3!important">من المستودع</th>
+          <th class="subh" style="background:#4CAF50!important">للمستفيدين</th>
+          <th class="subh" style="background:#FF9800!important">تالف/منتهي</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for v in vaccines %}
+        {% set d = data.get(v['key']) %}
+        {% set row_class = 'row-blue' if loop.index is odd else 'row-yellow' %}
+        <tr class="{{ row_class }}" data-key="{{ v['key'] }}">
+          <td class="antigen-label fw-semibold">
+            {{ v['label'] }}
+            <small class="text-muted d-block" style="font-size:.72rem">فيال {{ v['vial'] }} جرعة</small>
+          </td>
+          <!-- Opening -->
+          <td class="p-1">
+            <input type="number" name="{{ v['key'] }}_opening"
+                   class="form-control form-control-sm stock-input text-center p-1"
+                   style="background:#E3F2FD;border-color:#90CAF9"
+                   value="{{ d['opening'] if d and d['opening'] is not none else '' }}"
+                   min="0" placeholder="–" data-field="opening">
+          </td>
+          <!-- Received -->
+          <td class="p-1">
+            <input type="number" name="{{ v['key'] }}_received"
+                   class="form-control form-control-sm stock-input text-center p-1"
+                   style="background:#E8F5E9;border-color:#A5D6A7"
+                   value="{{ d['received'] if d and d['received'] is not none else '' }}"
+                   min="0" placeholder="–" data-field="received">
+          </td>
+          <!-- Administered -->
+          <td class="p-1">
+            <input type="number" name="{{ v['key'] }}_administered"
+                   class="form-control form-control-sm stock-input text-center p-1"
+                   style="background:#F3E5F5;border-color:#CE93D8"
+                   value="{{ d['administered'] if d and d['administered'] is not none else '' }}"
+                   min="0" placeholder="–" data-field="administered">
+          </td>
+          <!-- Wastage -->
+          <td class="p-1">
+            <input type="number" name="{{ v['key'] }}_wastage"
+                   class="form-control form-control-sm stock-input text-center p-1"
+                   style="background:#FFF3E0;border-color:#FFCC80"
+                   value="{{ d['wastage'] if d and d['wastage'] is not none else '' }}"
+                   min="0" placeholder="–" data-field="wastage">
+          </td>
+          <!-- Closing (calculated) -->
+          <td class="text-center fw-bold closing-cell" id="close_{{ v['key'] }}"
+              style="background:#F5F5F5;font-size:.9rem">–</td>
+          <!-- Status -->
+          <td class="text-center status-cell" id="status_{{ v['key'] }}">–</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Legend -->
+<div class="card shadow-sm mb-3">
+  <div class="card-header section-header"><i class="bi bi-info-circle"></i> دليل حالة المخزون</div>
+  <div class="card-body d-flex gap-2 flex-wrap">
+    <span class="badge" style="background:#00B050;font-size:.85rem">✓ كافٍ (&gt; 0)</span>
+    <span class="badge bg-warning text-dark" style="font-size:.85rem">⚠ منخفض (= 0)</span>
+    <span class="badge bg-danger" style="font-size:.85rem">✕ نفاد (&lt; 0)</span>
+  </div>
+</div>
+
+<div class="text-end mb-4">
+  <button type="submit" class="btn btn-primary btn-lg px-5">
+    <i class="bi bi-save2-fill"></i> حفظ جميع البيانات
+  </button>
+</div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function calcRow(tr) {
+  const key = tr.dataset.key;
+  const get = field => {
+    const el = tr.querySelector(`[data-field="${field}"]`);
+    const v = el ? el.value.trim() : '';
+    return v !== '' ? (parseInt(v) || 0) : null;
+  };
+  const opening = get('opening'), received = get('received'),
+        admin   = get('administered'), wastage = get('wastage');
+
+  const closeEl  = document.getElementById(`close_${key}`);
+  const statusEl = document.getElementById(`status_${key}`);
+
+  const anyFilled = [opening, received, admin, wastage].some(v => v !== null);
+  if (!anyFilled) {
+    closeEl.textContent  = '–';
+    closeEl.className    = 'text-center fw-bold closing-cell';
+    statusEl.textContent = '–';
+    statusEl.className   = 'text-center status-cell';
+    return;
+  }
+  const o = opening || 0, r = received || 0, a = admin || 0, w = wastage || 0;
+  const closing = o + r - a - w;
+  closeEl.textContent = closing.toLocaleString();
+
+  if (closing > 0) {
+    closeEl.className  = 'text-center fw-bold closing-cell text-success';
+    statusEl.innerHTML = '<span class="badge" style="background:#00B050">✓ كافٍ</span>';
+    statusEl.className = 'text-center status-cell';
+  } else if (closing === 0) {
+    closeEl.className  = 'text-center fw-bold closing-cell text-warning';
+    statusEl.innerHTML = '<span class="badge bg-warning text-dark">⚠ منخفض</span>';
+    statusEl.className = 'text-center status-cell';
+  } else {
+    closeEl.className  = 'text-center fw-bold closing-cell text-danger';
+    statusEl.innerHTML = '<span class="badge bg-danger">✕ نفاد</span>';
+    statusEl.className = 'text-center status-cell';
+  }
+}
+
+document.querySelectorAll('#stockTable tbody tr').forEach(tr => {
+  tr.querySelectorAll('.stock-input').forEach(inp => {
+    inp.addEventListener('input', () => calcRow(tr));
+  });
+  calcRow(tr); // initial calc on load
+});
+
+// Navigate on year/month change
+document.getElementById('yearSel').addEventListener('change', function() {
+  window.location.href = `/stock/{{ fac['id'] }}?year=${this.value}&month=${document.getElementById('monthSel').value}`;
+});
+document.getElementById('monthSel').addEventListener('change', function() {
+  window.location.href = `/stock/{{ fac['id'] }}?year=${document.getElementById('yearSel').value}&month=${this.value}`;
+});
+</script>
+{% endblock %}

@@ -16,6 +16,9 @@
     <small class="text-muted">{{ fac['governorate'] }} | {{ fac['type'] }} | {{ fac['provider'] }}</small>
   </div>
   <div class="ms-auto d-flex gap-2">
+    <a href="/stock/{{ fac['id'] }}?year={{ year }}" class="btn btn-info btn-sm text-white">
+      <i class="bi bi-boxes"></i> سجل المخزون
+    </a>
     <a href="/export/{{ fac['id'] }}?year={{ year }}" class="btn btn-success btn-sm">
       <i class="bi bi-file-earmark-excel"></i> تصدير Excel
     </a>
