@@ -16,6 +16,9 @@
     <span class="navbar-brand mb-0 fw-bold" id="navTitle"></span>
     <div class="ms-auto d-flex gap-2">
       <button class="btn btn-warning btn-sm fw-bold" id="langBtn" onclick="toggleLang()"></button>
+      <a id="nav-stock-link" class="btn btn-info btn-sm text-white">
+        <i class="bi bi-boxes"></i> <span id="nav-stock">سجل المخزون</span>
+      </a>
       <button class="btn btn-success btn-sm" onclick="exportCurrent()">
         <i class="bi bi-file-earmark-excel"></i> <span id="nav-export"></span>
       </button>
@@ -60,6 +63,8 @@ function applyNavTranslations() {
   document.getElementById('nav-save').textContent   = t('saveData');
   document.getElementById('langBtn').textContent    = t('langBtn');
   document.getElementById('toast-msg').textContent  = t('savedMsg');
+  document.getElementById('nav-stock').textContent  = getLang()==='ar'?'سجل المخزون':'Stock Log';
+  document.getElementById('nav-stock-link').href    = `stock.html?id=${FAC_ID}&year=${YEAR}`;
 }
 
 function toggleLang() {

@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EPI Gaza – Stock Log</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="css/style.css" rel="stylesheet">
+</head>
+<body>
+<nav class="navbar navbar-dark" style="background:#1FA2C8">
+  <div class="container-fluid">
+    <a href="index.html" class="btn btn-outline-light btn-sm me-2" id="nav-back">رجوع</a>
+    <span class="navbar-brand mb-0 fw-bold" id="navTitle"></span>
+    <div class="ms-auto d-flex gap-2">
+      <a id="nav-imm-link" class="btn btn-outline-light btn-sm">
+        <i class="bi bi-clipboard2-pulse"></i> <span id="nav-imm">التطعيم</span>
+      </a>
+      <button class="btn btn-warning btn-sm fw-bold" id="langBtn" onclick="toggleLang()">EN</button>
+      <button class="btn btn-success btn-sm" onclick="exportStock()">
+        <i class="bi bi-file-earmark-excel"></i> <span id="nav-export">تصدير Excel</span>
+      </button>
+      <button class="btn btn-light btn-sm" onclick="saveStock()">
+        <i class="bi bi-save2-fill"></i> <span id="nav-save">حفظ</span>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<div class="container-fluid py-3" id="pageContent">
+  <div class="text-center py-5"><div class="spinner-border text-primary"></div></div>
+</div>
+
+<div id="savedToast" class="position-fixed bottom-0 start-50 translate-middle-x mb-3" style="z-index:9999;display:none">
+  <div class="alert alert-success shadow py-2 px-4 mb-0">
+    <i class="bi bi-check-circle-fill"></i> <span id="toast-msg">تم الحفظ</span>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<script src="js/data.js"></script>
+<script src="js/i18n.js"></script>
+<script src="js/api.js"></script>
+<script>
+const PARAMS   = new URLSearchParams(location.search);
+const FAC_ID   = parseInt(PARAMS.get('id'));
+let   YEAR     = parseInt(PARAMS.get('year'))  || 2026;
+let   MONTH    = parseInt(PARAMS.get('month')) || new Date().getMonth() + 1;
+let   facility = null;
+let   stockData   = {};   // {antigen: {opening,received,administered,wastage}}
+let   prevClosing = {};   // {antigen: closing of prev month}
+
+const MONTHS_AR = ['يناير','فبراير','مارس','أبريل','مايو','يونيو',
+                   'يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+
+const STOCK_VACCINES = [
+  {key:'BCG',    label:'BCG',            vial:20},
+  {key:'HepB0',  label:'HepB (Birth)',   vial:10},
+  {key:'OPV0',   label:'OPV 0 (Birth)',  vial:10},
+  {key:'Penta1', label:'Penta 1',        vial:10},
+  {key:'Penta2', label:'Penta 2',        vial:10},
+  {key:'Penta3', label:'Penta 3',        vial:10},
+  {key:'OPV1',   label:'OPV 1',          vial:10},
+  {key:'OPV2',   label:'OPV 2',          vial:10},
+  {key:'OPV3',   label:'OPV 3',          vial:10},
+  {key:'IPV',    label:'IPV',            vial:5},
+  {key:'PCV1',   label:'PCV 1',          vial:5},
+  {key:'PCV2',   label:'PCV 2',          vial:5},
+  {key:'PCV3',   label:'PCV 3',          vial:5},
+  {key:'Rota1',  label:'Rotavirus 1',    vial:5},
+  {key:'Rota2',  label:'Rotavirus 2',    vial:5},
+  {key:'MR1',    label:'MR 1 (MMR1)',    vial:1},
+  {key:'MR2',    label:'MR 2 (MMR2)',    vial:1},
+  {key:'VitA1',  label:'Vit A (1st)',    vial:1},
+  {key:'VitA2',  label:'Vit A (2nd)',    vial:1},
+];
+
+function toggleLang() {
+  setLang(getLang()==='ar'?'en':'ar');
+  renderPage();
+}
+
+async function init() {
+  applyDir();
+  try {
+    const facilities = await api.getFacilities();
+    facility = facilities.find(f => f.id === FAC_ID);
+    if (!facility) { document.getElementById('pageContent').innerHTML='<div class="alert alert-danger">Facility not found</div>'; return; }
+    document.title = facility.name + ' – Stock';
+    document.getElementById('navTitle').textContent = facility.name;
+    document.getElementById('nav-imm-link').href = `facility.html?id=${FAC_ID}&year=${YEAR}`;
+    await loadStock();
+    renderPage();
+  } catch(e) {
+    document.getElementById('pageContent').innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+  }
+}
+
+async function loadStock() {
+  try {
+    const d = await api.getStock(FAC_ID, YEAR, MONTH);
+    stockData = d || {};
+  } catch(e) { stockData = {}; }
+
+  // Load prev month to get closing → auto-fill opening
+  const pm = MONTH === 1 ? 12 : MONTH - 1;
+  const py = MONTH === 1 ? YEAR - 1 : YEAR;
+  try {
+    const pd = await api.getStock(FAC_ID, py, pm);
+    prevClosing = {};
+    if (pd) {
+      STOCK_VACCINES.forEach(v => {
+        const r = pd[v.key];
+        if (r) {
+          const o=(r.opening||0), rc=(r.received||0), a=(r.administered||0), w=(r.wastage||0);
+          prevClosing[v.key] = o + rc - a - w;
+        }
+      });
+    }
+  } catch(e) { prevClosing = {}; }
+}
+
+function renderPage() {
+  const lang = getLang();
+  applyDir();
+  document.getElementById('langBtn').textContent = lang==='ar'?'EN':'عر';
+  document.getElementById('nav-save').textContent   = lang==='ar'?'حفظ':'Save';
+  document.getElementById('nav-export').textContent = lang==='ar'?'تصدير Excel':'Export Excel';
+  document.getElementById('nav-imm').textContent    = lang==='ar'?'التطعيم':'Vaccination';
+  document.getElementById('nav-back').innerHTML     = `<i class="bi bi-arrow-${lang==='ar'?'right':'left'}"></i> ${lang==='ar'?'رجوع':'Back'}`;
+
+  const monthName = lang==='ar' ? MONTHS_AR[MONTH-1] : MONTHS[MONTH-1];
+
+  let html = `
+  <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+    <div>
+      <h5 class="mb-0"><i class="bi bi-boxes text-info"></i> ${facility.name}</h5>
+      <small class="text-muted">${facility.governorate} | ${facility.type} | ${facility.provider}</small>
+    </div>
+    <span class="badge bg-info fs-6 ms-1">${lang==='ar'?'سجل المخزون الشهري':'Monthly Stock Log'}</span>
+  </div>
+
+  <!-- Year/Month selector -->
+  <div class="card mb-3 shadow-sm">
+    <div class="card-header section-header">
+      <i class="bi bi-calendar3"></i> ${lang==='ar'?'الشهر والسنة':'Month & Year'}
+    </div>
+    <div class="card-body">
+      <div class="row g-3 align-items-end">
+        <div class="col-6 col-md-2">
+          <label class="form-label fw-bold">${lang==='ar'?'السنة':'Year'}</label>
+          <select id="yearSel" class="form-select" onchange="changeYearMonth()">
+            ${Array.from({length:11},(_,i)=>2020+i).map(y=>`<option value="${y}"${y===YEAR?' selected':''}>${y}</option>`).join('')}
+          </select>
+        </div>
+        <div class="col-6 col-md-4">
+          <label class="form-label fw-bold">${lang==='ar'?'الشهر':'Month'}</label>
+          <select id="monthSel" class="form-select" onchange="changeYearMonth()">
+            ${MONTHS.map((m,i)=>`<option value="${i+1}"${i+1===MONTH?' selected':''}>${MONTHS_AR[i]} (${m})</option>`).join('')}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <button class="btn btn-primary w-100" onclick="saveStock()">
+            <i class="bi bi-save2-fill"></i> ${lang==='ar'?'حفظ البيانات':'Save Data'}
+          </button>
+        </div>
+        <div class="col-md-3 text-muted" style="font-size:.82rem">
+          <i class="bi bi-info-circle"></i>
+          ${lang==='ar'?'الإغلاق = افتتاحي + وارد − معطى − هدر':'Closing = Opening + Received − Administered − Wastage'}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stock table -->
+  <div class="card shadow-sm mb-3">
+    <div class="card-header section-header d-flex justify-content-between align-items-center">
+      <span><i class="bi bi-boxes"></i> ${lang==='ar'?'حركة المخزون –':'Stock Movement –'} ${monthName} ${YEAR}</span>
+      <small class="text-white opacity-75">${lang==='ar'?'🟡 إدخال | ⬜ محسوب':'🟡 Input | ⬜ Auto-calculated'}</small>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-bordered table-sm mb-0" id="stockTable" style="font-size:.83rem;min-width:860px">
+        <thead>
+          <tr class="table-header-row">
+            <th class="antigen-col" rowspan="2">${lang==='ar'?'اللقاح':'Vaccine'}</th>
+            <th class="text-center" style="background:#1976D2!important;color:#fff;min-width:80px">${lang==='ar'?'الافتتاحي':'Opening'}<br><small style="font-weight:normal;opacity:.85;font-size:.72rem">${lang==='ar'?'جرعات':'Doses'}</small></th>
+            <th class="text-center" style="background:#388E3C!important;color:#fff;min-width:80px">${lang==='ar'?'الوارد':'Received'}<br><small style="font-weight:normal;opacity:.85;font-size:.72rem">${lang==='ar'?'جرعات':'Doses'}</small></th>
+            <th class="text-center" style="background:#7B1FA2!important;color:#fff;min-width:80px">${lang==='ar'?'المعطى':'Administered'}<br><small style="font-weight:normal;opacity:.85;font-size:.72rem">${lang==='ar'?'جرعات':'Doses'}</small></th>
+            <th class="text-center" style="background:#E65100!important;color:#fff;min-width:80px">${lang==='ar'?'الهدر':'Wastage'}<br><small style="font-weight:normal;opacity:.85;font-size:.72rem">${lang==='ar'?'جرعات':'Doses'}</small></th>
+            <th class="text-center annual-col" rowspan="2">${lang==='ar'?'الإغلاق':'Closing'}<br><small style="font-weight:normal;opacity:.85;font-size:.72rem">${lang==='ar'?'محسوب':'Calc.'}</small></th>
+            <th class="text-center" style="background:#4527A0!important;color:#fff;min-width:70px" rowspan="2">${lang==='ar'?'الحالة':'Status'}</th>
+          </tr>
+          <tr class="table-subheader-row">
+            <th class="subh" style="background:#1976D2!important">${lang==='ar'?'أول الشهر':'Start'}</th>
+            <th class="subh" style="background:#388E3C!important">${lang==='ar'?'من المستودع':'From Store'}</th>
+            <th class="subh" style="background:#7B1FA2!important">${lang==='ar'?'للمستفيدين':'Given'}</th>
+            <th class="subh" style="background:#E65100!important">${lang==='ar'?'تالف/منتهي':'Expired/Broken'}</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${STOCK_VACCINES.map((v,i) => {
+            const d = stockData[v.key] || {};
+            const autoOpen = (d.opening === undefined || d.opening === null) && prevClosing[v.key] !== undefined
+                             ? prevClosing[v.key] : null;
+            const openVal  = d.opening !== undefined && d.opening !== null ? d.opening
+                           : autoOpen !== null ? autoOpen : '';
+            const isAuto   = (d.opening === undefined || d.opening === null) && autoOpen !== null;
+            const rowClass = i%2===0 ? 'row-blue' : 'row-yellow';
+            return `
+            <tr class="${rowClass}" data-key="${v.key}">
+              <td class="antigen-label fw-semibold">
+                ${v.label}
+                <small class="text-muted d-block" style="font-size:.7rem">${lang==='ar'?'فيال':'vial'} ${v.vial} ${lang==='ar'?'جرعة':'doses'}</small>
+              </td>
+              <td class="p-1" title="${isAuto?(lang==='ar'?'تلقائي من الشهر السابق':'Auto from prev month'):''}">
+                <input type="number" class="form-control form-control-sm stock-input text-center p-1"
+                  style="background:${isAuto?'#E8F5E9':'#E3F2FD'};border-color:${isAuto?'#A5D6A7':'#90CAF9'}"
+                  value="${openVal}" min="0" placeholder="–"
+                  data-key="${v.key}" data-field="opening">
+              </td>
+              <td class="p-1">
+                <input type="number" class="form-control form-control-sm stock-input text-center p-1"
+                  style="background:#E8F5E9;border-color:#A5D6A7"
+                  value="${d.received ?? ''}" min="0" placeholder="–"
+                  data-key="${v.key}" data-field="received">
+              </td>
+              <td class="p-1">
+                <input type="number" class="form-control form-control-sm stock-input text-center p-1"
+                  style="background:#F3E5F5;border-color:#CE93D8"
+                  value="${d.administered ?? ''}" min="0" placeholder="–"
+                  data-key="${v.key}" data-field="administered">
+              </td>
+              <td class="p-1">
+                <input type="number" class="form-control form-control-sm stock-input text-center p-1"
+                  style="background:#FFF3E0;border-color:#FFCC80"
+                  value="${d.wastage ?? ''}" min="0" placeholder="–"
+                  data-key="${v.key}" data-field="wastage">
+              </td>
+              <td class="text-center fw-bold closing-cell" id="close_${v.key}" style="background:#F5F5F5">–</td>
+              <td class="text-center status-cell" id="status_${v.key}">–</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Legend -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-header section-header"><i class="bi bi-info-circle"></i> ${lang==='ar'?'دليل الحالة':'Status Guide'}</div>
+    <div class="card-body d-flex gap-2 flex-wrap">
+      <span class="badge" style="background:#00B050;font-size:.85rem">✓ ${lang==='ar'?'كافٍ (> 0)':'Adequate (> 0)'}</span>
+      <span class="badge bg-warning text-dark" style="font-size:.85rem">⚠ ${lang==='ar'?'منخفض (= 0)':'Low (= 0)'}</span>
+      <span class="badge bg-danger" style="font-size:.85rem">✕ ${lang==='ar'?'نفاد (< 0)':'Stock-out (< 0)'}</span>
+    </div>
+  </div>
+
+  <div class="text-end mb-4">
+    <button class="btn btn-primary btn-lg px-5" onclick="saveStock()">
+      <i class="bi bi-save2-fill"></i> ${lang==='ar'?'حفظ جميع البيانات':'Save All Data'}
+    </button>
+  </div>`;
+
+  document.getElementById('pageContent').innerHTML = html;
+  attachListeners();
+  recalcAll();
+}
+
+function attachListeners() {
+  document.querySelectorAll('.stock-input').forEach(inp => {
+    inp.addEventListener('input', () => {
+      const key = inp.dataset.key;
+      const field = inp.dataset.field;
+      const raw = inp.value.trim();
+      if (!stockData[key]) stockData[key] = {};
+      if (raw !== '') stockData[key][field] = parseInt(raw) || 0;
+      else delete stockData[key][field];
+      recalcRow(key);
+    });
+  });
+}
+
+function recalcRow(key) {
+  const d = stockData[key] || {};
+  const o = d.opening ?? 0, r = d.received ?? 0, a = d.administered ?? 0, w = d.wastage ?? 0;
+  const anyFilled = ['opening','received','administered','wastage'].some(f => d[f] !== undefined);
+  const closeEl  = document.getElementById(`close_${key}`);
+  const statusEl = document.getElementById(`status_${key}`);
+  if (!closeEl) return;
+
+  if (!anyFilled) {
+    closeEl.textContent = '–'; closeEl.className = 'text-center fw-bold closing-cell';
+    statusEl.innerHTML  = '–'; statusEl.className = 'text-center status-cell'; return;
+  }
+  const cl = o + r - a - w;
+  closeEl.textContent = cl.toLocaleString();
+  if (cl > 0) {
+    closeEl.className  = 'text-center fw-bold closing-cell text-success';
+    statusEl.innerHTML = `<span class="badge" style="background:#00B050">✓ ${getLang()==='ar'?'كافٍ':'Adequate'}</span>`;
+  } else if (cl === 0) {
+    closeEl.className  = 'text-center fw-bold closing-cell text-warning';
+    statusEl.innerHTML = `<span class="badge bg-warning text-dark">⚠ ${getLang()==='ar'?'منخفض':'Low'}</span>`;
+  } else {
+    closeEl.className  = 'text-center fw-bold closing-cell text-danger';
+    statusEl.innerHTML = `<span class="badge bg-danger">✕ ${getLang()==='ar'?'نفاد':'Stock-out'}</span>`;
+  }
+}
+
+function recalcAll() {
+  // Flush inputs into stockData first
+  document.querySelectorAll('.stock-input').forEach(inp => {
+    const key = inp.dataset.key, field = inp.dataset.field;
+    const raw = inp.value.trim();
+    if (!stockData[key]) stockData[key] = {};
+    if (raw !== '') stockData[key][field] = parseInt(raw) || 0;
+    else delete stockData[key][field];
+  });
+  STOCK_VACCINES.forEach(v => recalcRow(v.key));
+}
+
+async function changeYearMonth() {
+  YEAR  = parseInt(document.getElementById('yearSel').value);
+  MONTH = parseInt(document.getElementById('monthSel').value);
+  history.replaceState(null,'',`stock.html?id=${FAC_ID}&year=${YEAR}&month=${MONTH}`);
+  document.getElementById('pageContent').innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary"></div></div>';
+  await loadStock();
+  renderPage();
+}
+
+async function saveStock() {
+  recalcAll();
+  const payload = {};
+  STOCK_VACCINES.forEach(v => {
+    const d = stockData[v.key] || {};
+    const anyFilled = ['opening','received','administered','wastage'].some(f => d[f] !== undefined && d[f] !== null);
+    if (anyFilled) payload[v.key] = {
+      opening:      d.opening      ?? null,
+      received:     d.received     ?? null,
+      administered: d.administered ?? null,
+      wastage:      d.wastage      ?? null,
+    };
+  });
+  try {
+    await api.saveStock(FAC_ID, YEAR, MONTH, payload);
+    stockData = payload;
+    const toast = document.getElementById('savedToast');
+    toast.style.display = 'block';
+    setTimeout(() => toast.style.display = 'none', 2500);
+  } catch(e) { alert('Save failed: ' + e.message); }
+}
+
+function exportStock() {
+  const wb = XLSX.utils.book_new();
+  const ws = {};
+  const merges = [];
+  const S = {
+    border: {top:{style:'thin',color:{rgb:'FFAAAAAA'}},bottom:{style:'thin',color:{rgb:'FFAAAAAA'}},
+              left:{style:'thin',color:{rgb:'FFAAAAAA'}},right:{style:'thin',color:{rgb:'FFAAAAAA'}}},
+    hdr:  {patternType:'solid',fgColor:{rgb:'FF1FA2C8'}},
+    hdr2: {patternType:'solid',fgColor:{rgb:'FF3ABCD8'}},
+    wht:  {name:'Arial',sz:9,bold:true,color:{rgb:'FFFFFFFF'}},
+    bld:  {name:'Arial',sz:9,bold:true},
+    nrm:  {name:'Arial',sz:9},
+    ctr:  {horizontal:'center',vertical:'center',wrapText:true},
+    lft:  {horizontal:'left',vertical:'center'},
+  };
+  const ec = (r,c) => XLSX.utils.encode_cell({r,c});
+  const mk = (v,fill,font,align,fmt) => {
+    const t = typeof v==='number'?'n':'s';
+    const cell = {v,t,s:{fill,font:font||S.nrm,alignment:align||S.ctr,border:S.border}};
+    if(fmt) cell.z=fmt; return cell;
+  };
+
+  // Title
+  ws[ec(0,0)] = mk(`Stock Log  |  ${facility.name}  |  ${MONTHS_AR[MONTH-1]} ${YEAR}`,S.hdr,S.wht,S.ctr);
+  merges.push({s:{r:0,c:0},e:{r:0,c:5}});
+  for(let c=1;c<=5;c++) ws[ec(0,c)]=mk('',S.hdr,S.wht,S.ctr);
+
+  // Headers
+  ['اللقاح','الافتتاحي','الوارد','المعطى','الهدر','الإغلاق'].forEach((h,i)=>{
+    ws[ec(1,i)]=mk(h,S.hdr2,S.wht,S.ctr);
+  });
+
+  // Data
+  STOCK_VACCINES.forEach((v,i) => {
+    const r = 2+i;
+    const fill = {patternType:'solid',fgColor:{rgb:i%2===0?'FFD0E8FF':'FFFFF0CC'}};
+    const d = stockData[v.key]||{};
+    const o=d.opening??null, rc=d.received??null, a=d.administered??null, w=d.wastage??null;
+    const cl = (o!==null||rc!==null||a!==null||w!==null) ? (o||0)+(rc||0)-(a||0)-(w||0) : null;
+    ws[ec(r,0)]=mk(v.label,fill,S.bld,S.lft);
+    [o,rc,a,w,cl].forEach((val,j)=>{
+      const cell=mk(val??'',fill,j===4?{...S.bld,color:{rgb:cl<0?'FFFF0000':cl===0?'FFFF9900':'FF00B050'}}:S.nrm,S.ctr,'#,##0');
+      ws[ec(r,j+1)]=cell;
+    });
+  });
+
+  ws['!ref']=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:1+STOCK_VACCINES.length,c:5}});
+  ws['!merges']=merges;
+  ws['!cols']=[{wch:22},{wch:12},{wch:12},{wch:12},{wch:12},{wch:12}];
+  XLSX.utils.book_append_sheet(wb,ws,`${MONTHS[MONTH-1]} ${YEAR}`);
+  XLSX.writeFile(wb,`StockLog_${facility.name.replace(/[\/\\:*?"<>|]/g,'-')}_${MONTHS[MONTH-1]}_${YEAR}.xlsx`,{cellStyles:true});
+}
+
+init();
+</script>
+</body>
+</html>

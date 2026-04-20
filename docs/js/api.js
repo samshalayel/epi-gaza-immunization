@@ -21,8 +21,13 @@ const api = {
   deleteFacility:   (id)          => apiFetch(`/facilities/${id}`,  { method:'DELETE' }),
   importFacilities: (list)        => apiFetch('/facilities/import', { method:'POST',   body: JSON.stringify({ facilities: list }) }),
 
-  // Data
+  // Immunization Data
   getData:  (facId, year)        => apiFetch(`/data/${facId}/${year}`),
   saveData: (facId, year, data)  => apiFetch(`/data/${facId}/${year}`, { method:'POST', body: JSON.stringify(data) }),
   getAllData:(facId)              => apiFetch(`/data/${facId}`),
+
+  // Stock Log
+  getStock:  (facId, year, month) => apiFetch(`/stock/${facId}/${year}/${month}`),
+  saveStock: (facId, year, month, data) => apiFetch(`/stock/${facId}/${year}/${month}`, { method:'POST', body: JSON.stringify(data) }),
+  getStockYear: (facId, year)     => apiFetch(`/stock/${facId}/${year}`),
 };
