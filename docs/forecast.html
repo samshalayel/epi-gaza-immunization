@@ -79,15 +79,18 @@
   <div class="card shadow-sm mb-3">
     <div class="section-hdr"><i class="bi bi-building"></i> Clinic Information / معلومات العيادة</div>
     <div class="card-body py-2">
+      <div id="facilityLoadingMsg" class="text-muted mb-2" style="font-size:12px">
+        <span class="spinner-border spinner-border-sm text-info"></span> Loading clinics from system...
+      </div>
       <div class="d-flex flex-wrap gap-0 align-items-stretch mb-2">
-        <span class="info-label d-flex align-items-center">Clinic Name / اسم العيادة</span>
-        <input id="clinicName" class="info-val flex-grow-1" type="text" placeholder="Enter clinic name...">
-        <span class="info-label d-flex align-items-center ms-2">Governorate / المحافظة</span>
-        <select id="clinicGov" class="info-val">
-          <option value="">-- Select --</option>
-          <option>North Gaza</option><option>Gaza</option><option>Deir al-Balah</option>
-          <option>Khan Younis</option><option>Rafah</option>
+        <span class="info-label d-flex align-items-center">Clinic / العيادة</span>
+        <select id="facilitySelect" class="info-val flex-grow-1" onchange="onFacilityChange()" style="min-width:220px">
+          <option value="">-- Select Clinic --</option>
         </select>
+        <span class="info-label d-flex align-items-center ms-2">Governorate / المحافظة</span>
+        <input id="clinicGov" class="info-val" type="text" readonly style="min-width:140px;background:#f0f8ff">
+        <span class="info-label d-flex align-items-center ms-2">Type / النوع</span>
+        <input id="clinicType" class="info-val" type="text" readonly style="min-width:120px;background:#f0f8ff">
         <span class="info-label d-flex align-items-center ms-2">Period / الفترة</span>
         <input id="clinicPeriod" class="info-val" type="text" value="2026" style="width:100px">
         <span class="info-label d-flex align-items-center ms-2">Date / التاريخ</span>
@@ -287,6 +290,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<script src="js/api.js"></script>
 <script>
 // ─── Vaccine definitions ───────────────────────────────────────────────────
 // wastage: BCG=2.5, MMR=1.3125, others=1.3875
@@ -405,10 +409,66 @@ function recalcTotals() {
   document.getElementById('tot_sb').textContent       = Math.ceil(tSb/SAFETY_BOX_PER).toLocaleString();
 }
 
+// ─── Facilities ────────────────────────────────────────────────────────────
+let facilities = [];
+let selectedFacility = null;
+
+async function loadFacilities() {
+  try {
+    facilities = await api.getFacilities();
+    const sel = document.getElementById('facilitySelect');
+    // group by governorate
+    const govs = [...new Set(facilities.map(f => f.governorate))].sort();
+    govs.forEach(gov => {
+      const group = document.createElement('optgroup');
+      group.label = gov;
+      facilities.filter(f => f.governorate === gov).forEach(f => {
+        const opt = document.createElement('option');
+        opt.value = f.id;
+        opt.textContent = f.name;
+        group.appendChild(opt);
+      });
+      sel.appendChild(group);
+    });
+    document.getElementById('facilityLoadingMsg').style.display = 'none';
+
+    // auto-select from URL param
+    const urlId = new URLSearchParams(location.search).get('id');
+    if (urlId) {
+      sel.value = urlId;
+      onFacilityChange();
+    }
+  } catch(e) {
+    document.getElementById('facilityLoadingMsg').innerHTML =
+      '<span class="text-danger">⚠ Could not load clinics from server. Enter name manually.</span>';
+    // fallback: show text input
+    const sel = document.getElementById('facilitySelect');
+    const input = document.createElement('input');
+    input.type = 'text'; input.className = 'info-val flex-grow-1';
+    input.placeholder = 'Enter clinic name...'; input.id = 'facilitySelect';
+    sel.replaceWith(input);
+  }
+}
+
+function onFacilityChange() {
+  const sel = document.getElementById('facilitySelect');
+  const id = parseInt(sel.value);
+  selectedFacility = facilities.find(f => f.id === id) || null;
+  if (selectedFacility) {
+    document.getElementById('clinicGov').value  = selectedFacility.governorate || '';
+    document.getElementById('clinicType').value = (selectedFacility.type || '') + (selectedFacility.provider ? ' – ' + selectedFacility.provider : '');
+  } else {
+    document.getElementById('clinicGov').value  = '';
+    document.getElementById('clinicType').value = '';
+  }
+}
+
 // ─── Save to localStorage ──────────────────────────────────────────────────
 function getFormData() {
+  const sel = document.getElementById('facilitySelect');
   const data = {
-    clinic:  document.getElementById('clinicName').value,
+    clinic:  selectedFacility ? selectedFacility.name : (sel.value || ''),
+    facId:   selectedFacility ? selectedFacility.id   : null,
     gov:     document.getElementById('clinicGov').value,
     period:  document.getElementById('clinicPeriod').value,
     date:    document.getElementById('clinicDate').value,
@@ -440,7 +500,10 @@ function loadForm() {
   if (!keys.length) return;
   const data = JSON.parse(localStorage.getItem(keys[keys.length-1]));
   if (!data) return;
-  document.getElementById('clinicName').value   = data.clinic  || '';
+  if (data.facId) {
+    const sel = document.getElementById('facilitySelect');
+    if (sel) { sel.value = data.facId; onFacilityChange(); }
+  }
   document.getElementById('clinicGov').value    = data.gov     || '';
   document.getElementById('clinicPeriod').value = data.period  || '2026';
   document.getElementById('clinicDate').value   = data.date    || '';
@@ -459,7 +522,9 @@ function loadForm() {
 
 function clearForm() {
   if (!confirm('Clear all data?')) return;
-  document.getElementById('clinicName').value = '';
+  const sel = document.getElementById('facilitySelect');
+  if (sel) sel.value = '';
+  selectedFacility = null;
   document.getElementById('clinicGov').value  = '';
   document.getElementById('targetPop').value  = 1200;
   document.getElementById('formNotes').value  = '';
@@ -486,7 +551,7 @@ function exportExcel() {
   rows.push([]);
   // clinic info
   rows.push([
-    'Clinic:', document.getElementById('clinicName').value,
+    'Clinic:', selectedFacility ? selectedFacility.name : '',
     'Governorate:', document.getElementById('clinicGov').value,
     'Period:', document.getElementById('clinicPeriod').value,
     'Date:', document.getElementById('clinicDate').value,
@@ -543,7 +608,7 @@ function exportExcel() {
   const ws = XLSX.utils.aoa_to_sheet(rows);
   ws['!cols'] = [{wch:45},{wch:14},{wch:10},{wch:14},{wch:13},{wch:18},{wch:13},{wch:13},{wch:13},{wch:13},{wch:10},{wch:12}];
   XLSX.utils.book_append_sheet(wb, ws, 'Forecast 2026');
-  const clinic = document.getElementById('clinicName').value.replace(/[\/\\:*?"<>|]/g,'-') || 'Clinic';
+  const clinic = (selectedFacility ? selectedFacility.name : 'Clinic').replace(/[\/\\:*?"<>|]/g,'-');
   XLSX.writeFile(wb, `Vaccine_Forecast_2026_${clinic}.xlsx`);
 }
 
@@ -551,8 +616,9 @@ function exportExcel() {
 buildTable();
 recalcAll();
 document.getElementById('clinicDate').value = new Date().toISOString().split('T')[0];
-// try restore
-try { loadForm(); } catch(e) {}
+loadFacilities().then(() => {
+  try { loadForm(); } catch(e) {}
+});
 </script>
 </body>
 </html>
