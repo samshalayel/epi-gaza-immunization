@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Forecast Settings – Admin Panel</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    body { font-family: Arial, sans-serif; background: #f0f4f8; font-size: 13px; }
+    .page-hdr { background: linear-gradient(135deg, #1a237e, #283593); color: #fff; padding: 14px 22px; }
+    .section-hdr { background: #283593; color: #fff; padding: 7px 14px; font-weight: 700; font-size: 13px; border-radius: 4px 4px 0 0; }
+    .section-hdr2 { background: #1B5E20; color: #fff; padding: 7px 14px; font-weight: 700; font-size: 13px; border-radius: 4px 4px 0 0; }
+    .section-hdr3 { background: #4A148C; color: #fff; padding: 7px 14px; font-weight: 700; font-size: 13px; border-radius: 4px 4px 0 0; }
+    thead th { background: #283593; color: #fff; text-align: center; vertical-align: middle; font-size: 11.5px; padding: 7px 6px; }
+    .param-input { border: 1px solid #90CAF9; border-radius: 3px; text-align: center; padding: 3px 5px; font-size: 12px; width: 80px; background: #E3F2FD; }
+    .param-input:focus { border-color: #1565C0; outline: none; background: #BBDEFB; }
+    .price-input { background: #E8F5E9; border-color: #A5D6A7; }
+    .price-input:focus { background: #C8E6C9; border-color: #388E3C; }
+    .waste-input { background: #FFF8E1; border-color: #FFE082; }
+    .waste-input:focus { background: #FFF9C4; border-color: #F9A825; }
+    .row-even { background: #EAF6FB; }
+    .row-odd  { background: #FFFDE7; }
+    td { vertical-align: middle; padding: 5px 8px; }
+    .vac-name { font-weight: 600; font-size: 12px; }
+    .agg-val { text-align: center; font-weight: 700; color: #1a237e; }
+    .agg-hdr { background: #4A148C !important; }
+    .changed { border-color: #E91E63 !important; background: #FCE4EC !important; }
+    .stat-card { border-radius: 8px; padding: 14px 18px; color: #fff; text-align: center; }
+    .btn-apply { background: #1a237e; color: #fff; border: none; }
+    .btn-apply:hover { background: #283593; color: #fff; }
+    .badge-syr { font-size: 10px; padding: 2px 6px; }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="page-hdr d-flex align-items-center gap-3 mb-0">
+  <i class="bi bi-sliders fs-3"></i>
+  <div>
+    <div class="fw-bold fs-5">Forecast Parameters – Admin Panel</div>
+    <div style="opacity:.75;font-size:11px">لوحة تحكم معاملات التوقعات – تطبق على جميع العيادات</div>
+  </div>
+  <div class="ms-auto d-flex gap-2">
+    <a href="forecast.html" class="btn btn-outline-light btn-sm">
+      <i class="bi bi-clipboard2-data"></i> Forecast Form
+    </a>
+    <a href="index.html" class="btn btn-outline-light btn-sm">
+      <i class="bi bi-house"></i> Home
+    </a>
+  </div>
+</div>
+
+<div class="container-fluid py-3 px-4">
+
+  <!-- STAT CARDS -->
+  <div class="row g-3 mb-3" id="statCards">
+    <div class="col-6 col-md-3">
+      <div class="stat-card" style="background:#1565C0">
+        <div style="font-size:11px;opacity:.85">Total Facilities</div>
+        <div class="fw-bold fs-4" id="statFacilities">–</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-card" style="background:#2E7D32">
+        <div style="font-size:11px;opacity:.85">Total Target Population</div>
+        <div class="fw-bold fs-4" id="statPop">–</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-card" style="background:#6A1B9A">
+        <div style="font-size:11px;opacity:.85">Total Vials Required</div>
+        <div class="fw-bold fs-4" id="statVials">–</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-card" style="background:#BF360C">
+        <div style="font-size:11px;opacity:.85">Total Cost (USD)</div>
+        <div class="fw-bold fs-4" id="statCost">–</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VACCINE PARAMETERS TABLE -->
+  <div class="card shadow-sm mb-3">
+    <div class="section-hdr d-flex justify-content-between align-items-center">
+      <span><i class="bi bi-syringe"></i> Vaccine Parameters – معاملات اللقاحات</span>
+      <div class="d-flex gap-2">
+        <button class="btn btn-warning btn-sm fw-bold" onclick="resetDefaults()">
+          <i class="bi bi-arrow-counterclockwise"></i> Reset Defaults
+        </button>
+        <button class="btn btn-light btn-sm fw-bold btn-apply" onclick="applyAndSave()">
+          <i class="bi bi-check2-circle"></i> Apply & Save to All Clinics
+        </button>
+      </div>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-bordered mb-0" id="paramTable">
+        <thead>
+          <tr>
+            <th style="min-width:200px">Vaccine / اللقاح</th>
+            <th style="min-width:55px">Doses/<br>Vial</th>
+            <th style="min-width:65px">Dose/<br>Child</th>
+            <th style="min-width:80px">Wastage<br>Factor ×<br><small style="font-weight:400">e.g. 1.33</small></th>
+            <th style="min-width:80px">Unit Price<br>USD/vial</th>
+            <th style="min-width:80px">Doses<br>Forecast*<br><small style="font-weight:400">(per 1000)</small></th>
+            <th style="min-width:75px">Vials<br>Forecast*<br><small style="font-weight:400">(per 1000)</small></th>
+            <th style="min-width:85px">Cost*<br><small style="font-weight:400">(per 1000 pop)</small></th>
+            <th style="min-width:70px">Syringe<br>Type</th>
+          </tr>
+        </thead>
+        <tbody id="paramBody"></tbody>
+        <tfoot>
+          <tr style="background:#E3F2FD">
+            <td colspan="4" class="fw-bold" style="text-align:right">Total per 1,000 population →</td>
+            <td></td>
+            <td class="agg-val" id="tot_doses_1k">–</td>
+            <td class="agg-val" id="tot_vials_1k">–</td>
+            <td class="agg-val" id="tot_cost_1k">–</td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    <div class="p-2 text-muted" style="font-size:11px">
+      * Calculated per 1,000 target population for reference. Actual clinic values depend on their entered population.
+    </div>
+  </div>
+
+  <!-- SYRINGE & SUPPLY PRICES -->
+  <div class="row g-3 mb-3">
+    <div class="col-md-6">
+      <div class="card shadow-sm h-100">
+        <div class="section-hdr2"><i class="bi bi-droplet-half"></i> Syringe & Safety Box Prices</div>
+        <div class="card-body">
+          <table class="table table-bordered table-sm mb-0">
+            <thead><tr>
+              <th style="background:#1B5E20;color:#fff">Item</th>
+              <th style="background:#1B5E20;color:#fff;width:120px">Unit Price USD</th>
+            </tr></thead>
+            <tbody>
+              <tr><td>0.05ml Syringe (BCG)</td>
+                <td><input type="number" class="param-input price-input" id="price_s05" step="0.001" min="0" style="width:100px"></td></tr>
+              <tr><td>0.5ml Syringe (Standard injection)</td>
+                <td><input type="number" class="param-input price-input" id="price_s5" step="0.001" min="0" style="width:100px"></td></tr>
+              <tr><td>2ml Syringe (Dilution)</td>
+                <td><input type="number" class="param-input price-input" id="price_s2" step="0.001" min="0" style="width:100px"></td></tr>
+              <tr><td>Safety Box (per box)</td>
+                <td><input type="number" class="param-input price-input" id="price_sb" step="0.01" min="0" style="width:100px"></td></tr>
+              <tr><td>Syringes per Safety Box</td>
+                <td><input type="number" class="param-input" id="syr_per_box" step="1" min="1" style="width:100px"></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6">
+      <div class="card shadow-sm h-100">
+        <div class="section-hdr3"><i class="bi bi-people"></i> System-wide Aggregate (All Clinics)</div>
+        <div class="card-body p-2">
+          <div id="aggregateMsg" class="text-muted text-center py-3">
+            <span class="spinner-border spinner-border-sm"></span> Loading facilities...
+          </div>
+          <table class="table table-bordered table-sm mb-0" id="aggregateTable" style="display:none;font-size:11.5px">
+            <thead><tr>
+              <th style="background:#4A148C;color:#fff">Vaccine</th>
+              <th class="agg-hdr" style="color:#fff">Total Pop</th>
+              <th class="agg-hdr" style="color:#fff">Vials Forecast</th>
+              <th class="agg-hdr" style="color:#fff">Vials Required</th>
+              <th class="agg-hdr" style="color:#fff">Total Cost USD</th>
+            </tr></thead>
+            <tbody id="aggregateBody"></tbody>
+            <tfoot id="aggregateFoot"></tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SAVE BUTTON -->
+  <div class="d-flex gap-3 mb-4">
+    <button class="btn btn-primary px-5 fw-bold" onclick="applyAndSave()">
+      <i class="bi bi-check2-all"></i> Apply & Save to All Clinics
+    </button>
+    <button class="btn btn-outline-secondary" onclick="resetDefaults()">
+      <i class="bi bi-arrow-counterclockwise"></i> Reset to Defaults
+    </button>
+  </div>
+
+</div>
+
+<!-- TOAST -->
+<div id="toast" class="position-fixed bottom-0 start-50 translate-middle-x mb-3" style="z-index:9999;display:none">
+  <div class="alert alert-success shadow py-2 px-4 mb-0 fw-bold" id="toastMsg">Saved ✓</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="js/api.js"></script>
+<script>
+const SETTINGS_KEY = 'epi_forecast_settings_v1';
+
+// ─── Default vaccine definitions ─────────────────────────────────────────
+const DEFAULTS = {
+  vaccines: [
+    {key:'BCG',   en:'BCG, vial of 20 doses',                       ar:'BCG',              dc:1, vial:20, waste:2.500,  price:2.884, syr:'bcg',  dil:true},
+    {key:'HepB',  en:'HepB vaccine, pediatric, vial of 10 doses',   ar:'التهاب الكبد B',   dc:1, vial:10, waste:1.3875, price:2.42,  syr:'inj',  dil:false},
+    {key:'IPV',   en:'Inactivated Polio (IPV), vial of 5 doses',    ar:'IPV',               dc:2, vial:5,  waste:1.3875, price:6.25,  syr:'inj',  dil:false},
+    {key:'bOPV',  en:'bOPV (bivalent 1+3), vial of 10 doses',       ar:'bOPV',              dc:5, vial:10, waste:1.3875, price:1.60,  syr:'oral', dil:false},
+    {key:'Penta', en:'DTP-HepB-Hib (Pentavalent), vial of 10 doses',ar:'الخماسي',          dc:3, vial:10, waste:1.3875, price:8.55,  syr:'inj',  dil:false},
+    {key:'Rota',  en:'Rotavirus (Rotavac 2.5ml), 5 dose vial',      ar:'روتا',              dc:3, vial:5,  waste:1.3875, price:10.00, syr:'oral', dil:false},
+    {key:'PCV',   en:'Pneumococcal PCV10, 5 dose vial',             ar:'PCV10',             dc:3, vial:5,  waste:1.3875, price:10.00, syr:'inj',  dil:false},
+    {key:'MMR',   en:'MMR, vial of 1 dose',                         ar:'MMR',               dc:2, vial:1,  waste:1.3125, price:4.48,  syr:'inj',  dil:true},
+    {key:'DTP18', en:'DTP vaccine (18 months), vial of 10 doses',   ar:'DTP (18 شهر)',      dc:1, vial:10, waste:1.3875, price:2.49,  syr:'inj',  dil:false},
+    {key:'DT6',   en:'DT vaccine (6 years), vial of 10 doses',      ar:'DT (6 سنوات)',      dc:1, vial:10, waste:1.3875, price:2.18,  syr:'inj',  dil:false},
+    {key:'Td15',  en:'Td vaccine (15 years), vial of 10 doses',     ar:'Td (15 سنة)',       dc:1, vial:10, waste:1.3875, price:1.81,  syr:'inj',  dil:false},
+  ],
+  price_s05: 5.50,
+  price_s5:  4.50,
+  price_s2:  1.98,
+  price_sb:  21.50,
+  syr_per_box: 100,
+};
+
+let settings = JSON.parse(JSON.stringify(DEFAULTS));
+let facilities = [];
+
+// ─── Load settings from localStorage ─────────────────────────────────────
+function loadSettings() {
+  try {
+    const saved = localStorage.getItem(SETTINGS_KEY);
+    if (saved) {
+      const s = JSON.parse(saved);
+      // merge vaccines (preserve order, fill missing)
+      if (s.vaccines) {
+        settings.vaccines = DEFAULTS.vaccines.map(def => {
+          const sv = s.vaccines.find(v => v.key === def.key);
+          return sv ? Object.assign({}, def, sv) : def;
+        });
+      }
+      ['price_s05','price_s5','price_s2','price_sb','syr_per_box'].forEach(k => {
+        if (s[k] !== undefined) settings[k] = s[k];
+      });
+    }
+  } catch(e) {}
+}
+
+// ─── Build table ──────────────────────────────────────────────────────────
+function buildTable() {
+  const body = document.getElementById('paramBody');
+  body.innerHTML = '';
+  settings.vaccines.forEach((v, i) => {
+    const cls = i % 2 === 0 ? 'row-even' : 'row-odd';
+    const syrLabel = v.syr === 'bcg' ? '<span class="badge bg-primary badge-syr">0.05ml</span>'
+                   : v.syr === 'inj' ? '<span class="badge bg-success badge-syr">0.5ml</span>'
+                   : '<span class="badge bg-secondary badge-syr">Oral</span>';
+    const dilBadge = v.dil ? ' <span class="badge bg-info badge-syr">+2ml</span>' : '';
+    body.innerHTML += `
+    <tr class="${cls}" data-key="${v.key}">
+      <td class="vac-name">
+        ${v.en}<br>
+        <span style="font-size:10.5px;color:#555;font-weight:400">${v.ar}</span>
+      </td>
+      <td style="text-align:center;font-weight:600">${v.vial}</td>
+      <td style="text-align:center">
+        <input type="number" class="param-input" data-key="${v.key}" data-field="dc"
+          value="${v.dc}" min="1" max="20" step="1" onchange="onParamChange(this)">
+      </td>
+      <td style="text-align:center">
+        <input type="number" class="param-input waste-input" data-key="${v.key}" data-field="waste"
+          value="${v.waste}" min="1" max="5" step="0.0001" onchange="onParamChange(this)">
+      </td>
+      <td style="text-align:center">
+        <input type="number" class="param-input price-input" data-key="${v.key}" data-field="price"
+          value="${v.price}" min="0" step="0.001" onchange="onParamChange(this)">
+      </td>
+      <td class="agg-val" id="ref_doses_${v.key}">–</td>
+      <td class="agg-val" id="ref_vials_${v.key}">–</td>
+      <td class="agg-val" id="ref_cost_${v.key}">–</td>
+      <td style="text-align:center">${syrLabel}${dilBadge}</td>
+    </tr>`;
+  });
+  // fill syringe price inputs
+  ['s05','s5','s2','sb'].forEach(k => {
+    document.getElementById(`price_${k}`).value = settings[`price_${k}`];
+  });
+  document.getElementById('syr_per_box').value = settings.syr_per_box;
+  recalcRef();
+}
+
+function onParamChange(el) {
+  const key   = el.dataset.key;
+  const field = el.dataset.field;
+  const val   = parseFloat(el.value);
+  const v     = settings.vaccines.find(v => v.key === key);
+  if (v && !isNaN(val)) {
+    v[field] = val;
+    el.classList.add('changed');
+  }
+  recalcRef();
+}
+
+// ─── Reference calc per 1,000 population ─────────────────────────────────
+function recalcRef() {
+  const pop = 1000;
+  let tDoses = 0, tVials = 0, tCost = 0;
+  settings.vaccines.forEach(v => {
+    const doses = Math.ceil(pop * v.dc * v.waste);
+    const vials = doses / v.vial;
+    const cost  = vials * v.price;
+    tDoses += doses; tVials += vials; tCost += cost;
+    const d = document.getElementById(`ref_doses_${v.key}`);
+    const vi = document.getElementById(`ref_vials_${v.key}`);
+    const c  = document.getElementById(`ref_cost_${v.key}`);
+    if (d) d.textContent = Math.round(doses).toLocaleString();
+    if (vi) vi.textContent = Math.round(vials).toLocaleString();
+    if (c) c.textContent = '$' + cost.toFixed(0);
+  });
+  document.getElementById('tot_doses_1k').textContent = Math.round(tDoses).toLocaleString();
+  document.getElementById('tot_vials_1k').textContent = Math.round(tVials).toLocaleString();
+  document.getElementById('tot_cost_1k').textContent  = '$' + tCost.toFixed(0);
+  recalcAggregate();
+}
+
+// ─── Aggregate across all facilities ─────────────────────────────────────
+function recalcAggregate() {
+  if (!facilities.length) return;
+  const body = document.getElementById('aggregateBody');
+  const foot = document.getElementById('aggregateFoot');
+
+  // total pop = sum of all facilities' stored target population (from localStorage per facility)
+  // We use the system-wide default: 1200 per facility if not customized
+  // (forecasts store pop per clinic in localStorage as forecast_{clinic}_{period})
+  const totalPop = facilities.reduce((sum, f) => {
+    const key = Object.keys(localStorage).find(k => k.startsWith(`forecast_`) && k.includes(f.name));
+    if (key) {
+      try { const d = JSON.parse(localStorage.getItem(key)); return sum + (parseInt(d.pop)||0); } catch(e) {}
+    }
+    return sum + 1200; // default
+  }, 0);
+
+  document.getElementById('statFacilities').textContent = facilities.length;
+  document.getElementById('statPop').textContent = totalPop.toLocaleString();
+
+  let grandVials = 0, grandCost = 0;
+  const rows = settings.vaccines.map(v => {
+    const vials = Math.ceil(totalPop * v.dc * v.waste / v.vial);
+    const cost  = vials * v.price;
+    grandVials += vials; grandCost += cost;
+    return {v, vials, cost};
+  });
+
+  body.innerHTML = rows.map((r, i) => `
+    <tr class="${i%2===0?'row-even':'row-odd'}">
+      <td class="vac-name">${r.v.en}</td>
+      <td class="agg-val">${totalPop.toLocaleString()}</td>
+      <td class="agg-val">${r.vials.toLocaleString()}</td>
+      <td class="agg-val" style="color:#E65100">${r.vials.toLocaleString()}</td>
+      <td class="agg-val" style="color:#1B5E20">$${r.cost.toFixed(0)}</td>
+    </tr>`).join('');
+
+  foot.innerHTML = `
+    <tr style="background:#1a237e;color:#fff;font-weight:700">
+      <td>TOTAL</td>
+      <td class="text-center">${totalPop.toLocaleString()}</td>
+      <td class="text-center">${grandVials.toLocaleString()}</td>
+      <td class="text-center">${grandVials.toLocaleString()}</td>
+      <td class="text-center">$${grandCost.toFixed(0)}</td>
+    </tr>`;
+
+  document.getElementById('aggregateTable').style.display = '';
+  document.getElementById('aggregateMsg').style.display   = 'none';
+  document.getElementById('statVials').textContent = grandVials.toLocaleString();
+  document.getElementById('statCost').textContent  = '$' + Math.round(grandCost).toLocaleString();
+}
+
+// ─── Apply & Save ─────────────────────────────────────────────────────────
+function applyAndSave() {
+  // Read all inputs back into settings
+  document.querySelectorAll('[data-key][data-field]').forEach(el => {
+    const key   = el.dataset.key;
+    const field = el.dataset.field;
+    const val   = parseFloat(el.value);
+    const v     = settings.vaccines.find(v => v.key === key);
+    if (v && !isNaN(val)) v[field] = val;
+  });
+  ['s05','s5','s2','sb'].forEach(k => {
+    const v = parseFloat(document.getElementById(`price_${k}`).value);
+    if (!isNaN(v)) settings[`price_${k}`] = v;
+  });
+  const spb = parseInt(document.getElementById('syr_per_box').value);
+  if (!isNaN(spb) && spb > 0) settings.syr_per_box = spb;
+
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+
+  // Remove 'changed' highlight
+  document.querySelectorAll('.changed').forEach(el => el.classList.remove('changed'));
+
+  showToast('✓ Settings saved — all clinic forecasts will use these values');
+  recalcRef();
+}
+
+function resetDefaults() {
+  if (!confirm('Reset all parameters to original defaults?')) return;
+  settings = JSON.parse(JSON.stringify(DEFAULTS));
+  localStorage.removeItem(SETTINGS_KEY);
+  buildTable();
+  showToast('✓ Reset to defaults');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 3000);
+}
+
+// ─── Load facilities ──────────────────────────────────────────────────────
+async function loadFacilities() {
+  try {
+    facilities = await api.getFacilities();
+    recalcAggregate();
+  } catch(e) {
+    document.getElementById('aggregateMsg').innerHTML =
+      '<span class="text-danger">⚠ Could not load facilities from server.</span>';
+  }
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────
+loadSettings();
+buildTable();
+loadFacilities();
+</script>
+</body>
+</html>

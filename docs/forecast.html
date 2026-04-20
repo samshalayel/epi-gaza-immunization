@@ -54,6 +54,9 @@
     </a>
     <span class="navbar-brand fw-bold mb-0">Vaccine Supplies Forecast Form – Gaza Strip 2026</span>
     <div class="d-flex gap-2">
+      <a href="admin_forecast.html" class="btn btn-outline-warning btn-sm">
+        <i class="bi bi-sliders"></i> Admin Settings
+      </a>
       <button class="btn btn-success btn-sm" onclick="exportExcel()">
         <i class="bi bi-file-earmark-excel"></i> Export Excel
       </button>
@@ -292,11 +295,17 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <script src="js/api.js"></script>
 <script>
-// ─── Vaccine definitions ───────────────────────────────────────────────────
-// wastage: BCG=2.5, MMR=1.3125, others=1.3875
-// syringe type: 'inj'=0.5ml, 'bcg'=0.05ml, 'oral'=none
-// dil: needs 2ml dilution syringe (BCG, MMR)
-const VACCINES = [
+// ─── Load global settings from admin panel ────────────────────────────────
+const SETTINGS_KEY = 'epi_forecast_settings_v1';
+function loadGlobalSettings() {
+  try {
+    const s = localStorage.getItem(SETTINGS_KEY);
+    return s ? JSON.parse(s) : null;
+  } catch(e) { return null; }
+}
+
+// ─── Vaccine definitions (defaults — overridden by admin panel) ───────────
+const VACCINES_DEFAULT = [
   {en:'BCG, vial of 20 doses',                            ar:'BCG – فيال 20 جرعة',              dc:1, vial:20, waste:2.50,  price:2.884, syr:'bcg',  dil:true},
   {en:'HepB vaccine, pediatric, vial of 10 doses',        ar:'التهاب الكبد B – فيال 10 جرعات', dc:1, vial:10, waste:1.3875,price:2.42,  syr:'inj',  dil:false},
   {en:'Inactivated Polio (IPV), vial of 5 doses',         ar:'شلل الأطفال المحقون (IPV) – 5',   dc:2, vial:5,  waste:1.3875,price:6.25,  syr:'inj',  dil:false},
@@ -310,8 +319,16 @@ const VACCINES = [
   {en:'Td vaccine (15 years), vial of 10 doses',          ar:'Td (15 سنة) – 10 جرعات',           dc:1, vial:10, waste:1.3875,price:1.81,  syr:'inj',  dil:false},
 ];
 
-// Safety box: 1 box per 100 syringes (standard)
-const SAFETY_BOX_PER = 100;
+// Merge with admin panel settings if saved
+const _gs = loadGlobalSettings();
+const VACCINES = _gs && _gs.vaccines
+  ? VACCINES_DEFAULT.map(def => {
+      const sv = _gs.vaccines.find(v => v.key === def.key);
+      return sv ? Object.assign({}, def, {dc: sv.dc||def.dc, waste: sv.waste||def.waste, price: sv.price||def.price}) : def;
+    })
+  : VACCINES_DEFAULT;
+
+const SAFETY_BOX_PER = (_gs && _gs.syr_per_box) || 100;
 
 // ─── Build table ───────────────────────────────────────────────────────────
 function buildTable() {
