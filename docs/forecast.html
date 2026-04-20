@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vaccine Supplies Forecast Form – Gaza Strip 2026</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f6fa; font-size: 13px; }
+    .page-title { background: linear-gradient(135deg, #0D4F6B, #1FA2C8); color: #fff; padding: 14px 20px; border-radius: 8px; margin-bottom: 18px; }
+    .section-hdr { background: #1FA2C8; color: #fff; padding: 7px 14px; font-weight: 700; font-size: 13px; border-radius: 4px 4px 0 0; }
+    .section-hdr2 { background: #00695C; color: #fff; padding: 7px 14px; font-weight: 700; font-size: 13px; border-radius: 4px 4px 0 0; }
+    .section-hdr3 { background: #4527A0; color: #fff; padding: 7px 14px; font-weight: 700; font-size: 13px; border-radius: 4px 4px 0 0; }
+    .info-label { background: #1FA2C8; color: #fff; font-weight: 700; padding: 5px 10px; font-size: 12px; white-space: nowrap; }
+    .info-val { background: #FFFEF0; border: 1px solid #1FA2C8; padding: 4px 8px; font-size: 13px; min-width: 140px; }
+    table { font-size: 11.5px; }
+    thead th { text-align: center; vertical-align: middle; font-size: 11px; }
+    .th-forecast { background: #1565C0 !important; color: #fff; }
+    .th-vaccine  { background: #0D47A1 !important; color: #fff; }
+    .th-supply   { background: #1B5E20 !important; color: #fff; }
+    .th-equip    { background: #4A148C !important; color: #fff; }
+    .th-stat     { background: #880E4F !important; color: #fff; }
+    .row-even { background: #EAF6FB; }
+    .row-odd  { background: #FFFDE7; }
+    .fixed-cell { background: #ECEFF1; color: #37474F; font-weight: 600; text-align: center; }
+    .calc-cell  { background: #E0F2F1; color: #004D40; font-weight: 700; text-align: center; }
+    .req-cell   { background: #FFF8E1; color: #E65100; font-weight: 700; text-align: center; }
+    .input-cell input { border: 1px solid #aaa; border-radius: 3px; text-align: center; padding: 2px 4px; font-size: 11.5px; background: #fff; }
+    .input-cell input:focus { border-color: #1FA2C8; outline: none; background: #E3F7FF; }
+    .total-row td { background: #1FA2C8 !important; color: #fff !important; font-weight: 700; text-align: center; }
+    .vac-name { font-weight: 600; text-align: left; padding: 4px 8px; min-width: 200px; line-height: 1.3; }
+    .status-ok   { color: #2E7D32; font-weight: 700; }
+    .status-low  { color: #F57F17; font-weight: 700; }
+    .status-none { color: #666; }
+    .equip-table td, .equip-table th { padding: 5px 8px; vertical-align: middle; }
+    .equip-table input { width: 80px; border: 1px solid #ccc; border-radius: 3px; text-align: center; padding: 3px 5px; }
+    .pop-box { background: #E3F7FF; border: 2px solid #1FA2C8; border-radius: 6px; padding: 10px 18px; display: inline-flex; align-items: center; gap: 12px; }
+    .pop-box input { border: 1px solid #1FA2C8; border-radius: 4px; padding: 5px 10px; font-size: 15px; font-weight: 700; width: 110px; text-align: center; }
+    @media print {
+      .no-print { display: none !important; }
+      body { background: #fff; font-size: 10px; }
+      .card { border: 1px solid #ccc; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar navbar-dark py-2 no-print" style="background:#0D4F6B">
+  <div class="container-fluid">
+    <a href="index.html" class="btn btn-outline-light btn-sm">
+      <i class="bi bi-arrow-left"></i> Back
+    </a>
+    <span class="navbar-brand fw-bold mb-0">Vaccine Supplies Forecast Form – Gaza Strip 2026</span>
+    <div class="d-flex gap-2">
+      <button class="btn btn-success btn-sm" onclick="exportExcel()">
+        <i class="bi bi-file-earmark-excel"></i> Export Excel
+      </button>
+      <button class="btn btn-warning btn-sm" onclick="window.print()">
+        <i class="bi bi-printer"></i> Print
+      </button>
+    </div>
+  </div>
+</nav>
+
+<div class="container-fluid py-3 px-4">
+
+  <!-- TITLE -->
+  <div class="page-title d-flex align-items-center gap-3 mb-3">
+    <i class="bi bi-clipboard2-data fs-3"></i>
+    <div>
+      <div class="fw-bold fs-5">Vaccine and Supplies Forecast Gaza Strip – Period of 2026</div>
+      <div style="opacity:.8;font-size:12px">نموذج توقعات اللقاحات والمستلزمات لقطاع غزة – 2026</div>
+    </div>
+  </div>
+
+  <!-- CLINIC INFO -->
+  <div class="card shadow-sm mb-3">
+    <div class="section-hdr"><i class="bi bi-building"></i> Clinic Information / معلومات العيادة</div>
+    <div class="card-body py-2">
+      <div class="d-flex flex-wrap gap-0 align-items-stretch mb-2">
+        <span class="info-label d-flex align-items-center">Clinic Name / اسم العيادة</span>
+        <input id="clinicName" class="info-val flex-grow-1" type="text" placeholder="Enter clinic name...">
+        <span class="info-label d-flex align-items-center ms-2">Governorate / المحافظة</span>
+        <select id="clinicGov" class="info-val">
+          <option value="">-- Select --</option>
+          <option>North Gaza</option><option>Gaza</option><option>Deir al-Balah</option>
+          <option>Khan Younis</option><option>Rafah</option>
+        </select>
+        <span class="info-label d-flex align-items-center ms-2">Period / الفترة</span>
+        <input id="clinicPeriod" class="info-val" type="text" value="2026" style="width:100px">
+        <span class="info-label d-flex align-items-center ms-2">Date / التاريخ</span>
+        <input id="clinicDate" class="info-val" type="date" style="width:145px">
+      </div>
+      <div class="d-flex align-items-center gap-3 mt-2">
+        <div class="pop-box">
+          <label class="fw-bold mb-0" style="font-size:13px">
+            <i class="bi bi-people-fill text-info"></i> Estimated Annual Target Population / السكان المستهدفون
+          </label>
+          <input type="number" id="targetPop" value="1200" min="0" onchange="recalcAll()" oninput="recalcAll()">
+          <span class="text-muted" style="font-size:11px">children / طفل</span>
+        </div>
+        <div class="text-muted" style="font-size:11px">
+          <i class="bi bi-info-circle"></i>
+          Change target population → all forecasts auto-update
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VACCINES TABLE -->
+  <div class="card shadow-sm mb-3">
+    <div class="section-hdr">
+      <i class="bi bi-syringe"></i> Vaccine Forecast & Stock – توقعات اللقاحات والمخزون
+    </div>
+    <div class="table-responsive">
+      <table class="table table-bordered mb-0" id="vacTable">
+        <thead>
+          <tr>
+            <th rowspan="2" class="th-vaccine" style="min-width:200px">Vaccine / اللقاح</th>
+            <!-- Forecast group -->
+            <th colspan="4" class="th-forecast text-center">Forecast for 2026 Period / توقعات 2026</th>
+            <!-- Stock group -->
+            <th colspan="3" class="th-supply text-center">Requested Vaccine & Supplies / اللقاحات والمستلزمات المطلوبة</th>
+            <!-- Syringes group -->
+            <th colspan="3" class="th-supply text-center">Syringes / المحاقن</th>
+            <!-- Safety box -->
+            <th rowspan="2" class="th-supply text-center" style="min-width:65px">Safety Box<br>صندوق أمان</th>
+          </tr>
+          <tr>
+            <!-- Forecast sub -->
+            <th class="th-forecast" style="min-width:70px">Est. Annual<br>Target Pop</th>
+            <th class="th-forecast" style="min-width:55px">Dose/<br>Child</th>
+            <th class="th-forecast" style="min-width:75px">Vaccine<br>in Doses<br>Forecast</th>
+            <th class="th-forecast" style="min-width:75px">Total Vials<br>Forecast</th>
+            <!-- Stock sub -->
+            <th class="th-supply" style="min-width:75px">SOH in Vials<br>Jan 2026<br><small style="font-weight:400;opacity:.85">(INPUT)</small></th>
+            <th class="th-supply" style="min-width:75px">Required<br>Stock<br>(Vials)</th>
+            <th class="th-supply" style="min-width:65px">Unit Price<br>USD</th>
+            <!-- Syringes sub -->
+            <th class="th-supply" style="min-width:60px">0.05ml</th>
+            <th class="th-supply" style="min-width:60px">0.5ml</th>
+            <th class="th-supply" style="min-width:60px">2ml</th>
+          </tr>
+        </thead>
+        <tbody id="vacBody">
+          <!-- filled by JS -->
+        </tbody>
+        <tfoot>
+          <tr class="total-row" id="totalRow">
+            <td colspan="2" style="text-align:left;padding-left:12px">TOTAL / الإجمالي</td>
+            <td id="tot_doses_child">–</td>
+            <td id="tot_doses">–</td>
+            <td id="tot_vials">–</td>
+            <td id="tot_soh">–</td>
+            <td id="tot_req">–</td>
+            <td>–</td>
+            <td id="tot_s05">–</td>
+            <td id="tot_s5">–</td>
+            <td id="tot_s2">–</td>
+            <td id="tot_sb">–</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+  <!-- EQUIPMENT & SUPPLIES -->
+  <div class="row g-3 mb-3">
+    <!-- Cold Chain Equipment -->
+    <div class="col-md-6">
+      <div class="card shadow-sm h-100">
+        <div class="section-hdr2">
+          <i class="bi bi-snow2"></i> Cold Chain Equipment / معدات السلسلة الباردة
+        </div>
+        <div class="card-body p-2">
+          <table class="table table-bordered table-sm equip-table mb-0">
+            <thead><tr>
+              <th class="th-supply">Equipment / المعدة</th>
+              <th class="th-supply text-center" style="width:90px">Qty Requested</th>
+              <th class="th-supply text-center" style="width:90px">Notes</th>
+            </tr></thead>
+            <tbody>
+              <tr><td>SDD Refrigerator / ثلاجة شمسية</td>
+                <td><input type="number" class="equip-input" data-key="sdd_refr" min="0" placeholder="0"></td>
+                <td><input type="text" class="equip-input" data-key="sdd_refr_note" placeholder="note" style="width:90px"></td></tr>
+              <tr><td>SDD Deep Freezer / فريزر شمسي</td>
+                <td><input type="number" class="equip-input" data-key="sdd_freeze" min="0" placeholder="0"></td>
+                <td><input type="text" class="equip-input" data-key="sdd_freeze_note" placeholder="note" style="width:90px"></td></tr>
+              <tr><td>Vaccine Carrier / حقيبة لقاح</td>
+                <td><input type="number" class="equip-input" data-key="vac_carrier" min="0" placeholder="0"></td>
+                <td><input type="text" class="equip-input" data-key="vac_carrier_note" placeholder="note" style="width:90px"></td></tr>
+              <tr><td>Cold Box / صندوق بارد</td>
+                <td><input type="number" class="equip-input" data-key="cold_box" min="0" placeholder="0"></td>
+                <td><input type="text" class="equip-input" data-key="cold_box_note" placeholder="note" style="width:90px"></td></tr>
+              <tr><td>Temperature Monitor / مراقب الحرارة</td>
+                <td><input type="number" class="equip-input" data-key="temp_mon" min="0" placeholder="0"></td>
+                <td><input type="text" class="equip-input" data-key="temp_mon_note" placeholder="note" style="width:90px"></td></tr>
+              <tr><td>Spare Parts – Compressor</td>
+                <td><input type="number" class="equip-input" data-key="spare_comp" min="0" placeholder="0"></td>
+                <td><input type="text" class="equip-input" data-key="spare_comp_note" placeholder="note" style="width:90px"></td></tr>
+              <tr><td>Spare Thermometer</td>
+                <td><input type="number" class="equip-input" data-key="spare_thermo" min="0" placeholder="0"></td>
+                <td><input type="text" class="equip-input" data-key="spare_thermo_note" placeholder="note" style="width:90px"></td></tr>
+              <tr><td>Other / أخرى</td>
+                <td><input type="number" class="equip-input" data-key="other_equip" min="0" placeholder="0"></td>
+                <td><input type="text" class="equip-input" data-key="other_equip_note" placeholder="note" style="width:90px"></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stationery / IEC -->
+    <div class="col-md-6">
+      <div class="card shadow-sm h-100">
+        <div class="section-hdr3">
+          <i class="bi bi-journals"></i> Stationery & IEC Materials / المطبوعات والمواد التعليمية
+        </div>
+        <div class="card-body p-2">
+          <table class="table table-bordered table-sm equip-table mb-0">
+            <thead><tr>
+              <th class="th-equip">Item / البند</th>
+              <th class="th-equip text-center" style="width:90px">Qty Requested</th>
+              <th class="th-equip text-center" style="width:90px">Notes</th>
+            </tr></thead>
+            <tbody>
+              <tr><td>MCH Book / دفتر صحة الأم والطفل</td>
+                <td><input type="number" class="equip-input" data-key="mch_book" min="0" placeholder="0"></td>
+                <td><input type="text" class="equip-input" data-key="mch_book_note" placeholder="note" style="width:90px"></td></tr>
+              <tr><td>Rashmoon / رشمون</td>
+                <td><input type="number" class="equip-input" data-key="rashmoon" min="0" placeholder="0"></td>
+                <td><input type="text" class="equip-input" data-key="rashmoon_note" placeholder="note" style="width:90px"></td></tr>
+              <tr><td>Daily Summary Sheet / ورقة الملخص اليومي</td>
+                <td><input type="number" class="equip-input" data-key="daily_sheet" min="0" placeholder="0"></td>
+                <td><input type="text" class="equip-input" data-key="daily_sheet_note" placeholder="note" style="width:90px"></td></tr>
+              <tr><td>Defaulter Tracking & Reporting</td>
+                <td><input type="number" class="equip-input" data-key="defaulter" min="0" placeholder="0"></td>
+                <td><input type="text" class="equip-input" data-key="defaulter_note" placeholder="note" style="width:90px"></td></tr>
+              <tr><td>Temp. Monitoring Form</td>
+                <td><input type="number" class="equip-input" data-key="temp_form" min="0" placeholder="0"></td>
+                <td><input type="text" class="equip-input" data-key="temp_form_note" placeholder="note" style="width:90px"></td></tr>
+              <tr><td>Stock Monitoring & Reporting</td>
+                <td><input type="number" class="equip-input" data-key="stock_form" min="0" placeholder="0"></td>
+                <td><input type="text" class="equip-input" data-key="stock_form_note" placeholder="note" style="width:90px"></td></tr>
+              <tr><td>Immunization Monitoring Chart</td>
+                <td><input type="number" class="equip-input" data-key="imm_chart" min="0" placeholder="0"></td>
+                <td><input type="text" class="equip-input" data-key="imm_chart_note" placeholder="note" style="width:90px"></td></tr>
+              <tr><td>AEFI Booklet</td>
+                <td><input type="number" class="equip-input" data-key="aefi" min="0" placeholder="0"></td>
+                <td><input type="text" class="equip-input" data-key="aefi_note" placeholder="note" style="width:90px"></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NOTES -->
+  <div class="card shadow-sm mb-3">
+    <div class="section-hdr"><i class="bi bi-chat-left-text"></i> Notes / ملاحظات</div>
+    <div class="card-body">
+      <textarea id="formNotes" class="form-control" rows="3" placeholder="Any additional notes..."></textarea>
+    </div>
+  </div>
+
+  <!-- SAVE BUTTON -->
+  <div class="d-flex gap-3 mb-4 no-print">
+    <button class="btn btn-primary px-4" onclick="saveForm()">
+      <i class="bi bi-save2-fill"></i> Save Form / حفظ
+    </button>
+    <button class="btn btn-success px-4" onclick="exportExcel()">
+      <i class="bi bi-file-earmark-excel"></i> Export Excel
+    </button>
+    <button class="btn btn-outline-secondary px-4" onclick="clearForm()">
+      <i class="bi bi-arrow-counterclockwise"></i> Clear / مسح
+    </button>
+  </div>
+
+</div><!-- /container -->
+
+<!-- TOAST -->
+<div id="toast" class="position-fixed bottom-0 start-50 translate-middle-x mb-3" style="z-index:9999;display:none">
+  <div class="alert alert-success shadow py-2 px-4 mb-0" id="toastMsg">Saved ✓</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<script>
+// ─── Vaccine definitions ───────────────────────────────────────────────────
+// wastage: BCG=2.5, MMR=1.3125, others=1.3875
+// syringe type: 'inj'=0.5ml, 'bcg'=0.05ml, 'oral'=none
+// dil: needs 2ml dilution syringe (BCG, MMR)
+const VACCINES = [
+  {en:'BCG, vial of 20 doses',                            ar:'BCG – فيال 20 جرعة',              dc:1, vial:20, waste:2.50,  price:2.884, syr:'bcg',  dil:true},
+  {en:'HepB vaccine, pediatric, vial of 10 doses',        ar:'التهاب الكبد B – فيال 10 جرعات', dc:1, vial:10, waste:1.3875,price:2.42,  syr:'inj',  dil:false},
+  {en:'Inactivated Polio (IPV), vial of 5 doses',         ar:'شلل الأطفال المحقون (IPV) – 5',   dc:2, vial:5,  waste:1.3875,price:6.25,  syr:'inj',  dil:false},
+  {en:'bOPV (bivalent type 1+3), vial of 10 doses',       ar:'شلل الأطفال الفموي (bOPV) – 10',  dc:5, vial:10, waste:1.3875,price:1.60,  syr:'oral', dil:false},
+  {en:'DTP-HepB-Hib (Pentavalent), vial of 10 doses',     ar:'الخماسي DTP-HepB-Hib – 10 جرعات', dc:3, vial:10, waste:1.3875,price:8.55,  syr:'inj',  dil:false},
+  {en:'Rotavirus (Rotavac 2.5ml), 5 dose vial',           ar:'روتا فيروس Rotavac 2.5ml – 5',    dc:3, vial:5,  waste:1.3875,price:10.00, syr:'oral', dil:false},
+  {en:'Pneumococcal PCV10, 5 dose vial',                  ar:'المكورات الرئوية PCV10 – 5 جرعات', dc:3, vial:5,  waste:1.3875,price:10.00, syr:'inj',  dil:false},
+  {en:'MMR, vial of 1 dose',                              ar:'الحصبة والحصبة الألمانية MMR – 1', dc:2, vial:1,  waste:1.3125,price:4.48,  syr:'inj',  dil:true},
+  {en:'DTP vaccine (18 months), vial of 10 doses',        ar:'ثلاثي DTP منشط (18 شهر) – 10',    dc:1, vial:10, waste:1.3875,price:2.49,  syr:'inj',  dil:false},
+  {en:'DT vaccine (6 years), vial of 10 doses',           ar:'ثنائي DT (6 سنوات) – 10 جرعات',   dc:1, vial:10, waste:1.3875,price:2.18,  syr:'inj',  dil:false},
+  {en:'Td vaccine (15 years), vial of 10 doses',          ar:'Td (15 سنة) – 10 جرعات',           dc:1, vial:10, waste:1.3875,price:1.81,  syr:'inj',  dil:false},
+];
+
+// Safety box: 1 box per 100 syringes (standard)
+const SAFETY_BOX_PER = 100;
+
+// ─── Build table ───────────────────────────────────────────────────────────
+function buildTable() {
+  const body = document.getElementById('vacBody');
+  body.innerHTML = '';
+  VACCINES.forEach((v, i) => {
+    const cls = i % 2 === 0 ? 'row-even' : 'row-odd';
+    body.innerHTML += `
+    <tr class="${cls}" data-idx="${i}">
+      <td class="vac-name">
+        <div>${v.en}</div>
+        <div style="font-size:10.5px;color:#555;font-weight:400">${v.ar}</div>
+      </td>
+      <td class="fixed-cell pop-disp">${parseInt(document.getElementById('targetPop').value)||1200}</td>
+      <td class="fixed-cell">${v.dc}</td>
+      <td class="calc-cell" id="doses_${i}">–</td>
+      <td class="calc-cell" id="vials_${i}">–</td>
+      <td class="input-cell" style="text-align:center">
+        <input type="number" id="soh_${i}" value="" min="0" placeholder="–"
+          oninput="recalcRow(${i})" onchange="recalcRow(${i})"
+          style="width:70px">
+      </td>
+      <td class="req-cell" id="req_${i}">–</td>
+      <td class="fixed-cell">$${v.price.toFixed(3)}</td>
+      <td class="calc-cell" id="s05_${i}">${v.syr==='bcg'?'✓':'–'}</td>
+      <td class="calc-cell" id="s5_${i}">${v.syr==='inj'?'✓':'–'}</td>
+      <td class="calc-cell" id="s2_${i}">${v.dil?'✓':'–'}</td>
+      <td class="calc-cell" id="sb_${i}">–</td>
+    </tr>`;
+  });
+}
+
+// ─── Calculations ──────────────────────────────────────────────────────────
+function recalcAll() {
+  const pop = parseInt(document.getElementById('targetPop').value) || 0;
+  // update pop display cells
+  document.querySelectorAll('.pop-disp').forEach(c => c.textContent = pop.toLocaleString());
+  VACCINES.forEach((_, i) => recalcRow(i));
+  recalcTotals();
+}
+
+function recalcRow(i) {
+  const pop   = parseInt(document.getElementById('targetPop').value) || 0;
+  const v     = VACCINES[i];
+  const doses = Math.ceil(pop * v.dc * v.waste);
+  const vials = parseFloat((doses / v.vial).toFixed(1));
+  const sohEl = document.getElementById(`soh_${i}`);
+  const soh   = sohEl && sohEl.value !== '' ? parseInt(sohEl.value) : null;
+  const req   = soh !== null ? Math.max(0, vials - soh) : vials;
+
+  // syringe calc: doses that need injection
+  const inj_doses = v.syr === 'inj' ? doses : (v.syr === 'bcg' ? doses : 0);
+  const s05 = v.syr === 'bcg' ? Math.ceil(doses * 1.1) : 0;
+  const s5  = v.syr === 'inj' ? Math.ceil(doses * 1.1) : 0;
+  const s2  = v.dil ? Math.ceil(vials * 1.1) : 0;
+  const sb  = Math.ceil((s05 + s5 + s2) / SAFETY_BOX_PER * 10) / 10;
+
+  document.getElementById(`doses_${i}`).textContent = doses.toLocaleString();
+  document.getElementById(`vials_${i}`).textContent = vials.toLocaleString();
+  document.getElementById(`req_${i}`).textContent   = Math.ceil(req).toLocaleString();
+
+  if (v.syr === 'bcg') document.getElementById(`s05_${i}`).textContent = s05.toLocaleString();
+  if (v.syr === 'inj') document.getElementById(`s5_${i}`).textContent  = s5.toLocaleString();
+  if (v.dil)           document.getElementById(`s2_${i}`).textContent  = s2.toLocaleString();
+  document.getElementById(`sb_${i}`).textContent = sb > 0 ? sb.toLocaleString() : '–';
+
+  recalcTotals();
+}
+
+function recalcTotals() {
+  let tDoses=0, tVials=0, tSoh=0, tReq=0, tS05=0, tS5=0, tS2=0, tSb=0;
+  VACCINES.forEach((v,i) => {
+    const pop   = parseInt(document.getElementById('targetPop').value)||0;
+    const doses = Math.ceil(pop * v.dc * v.waste);
+    const vials = doses / v.vial;
+    const sohEl = document.getElementById(`soh_${i}`);
+    const soh   = sohEl && sohEl.value !== '' ? parseInt(sohEl.value) : 0;
+    const req   = Math.max(0, vials - soh);
+    tDoses += doses;
+    tVials += vials;
+    tSoh   += soh;
+    tReq   += req;
+    tS05   += v.syr==='bcg' ? Math.ceil(doses*1.1) : 0;
+    tS5    += v.syr==='inj' ? Math.ceil(doses*1.1) : 0;
+    tS2    += v.dil ? Math.ceil(vials*1.1) : 0;
+    tSb    += (v.syr==='bcg'?Math.ceil(doses*1.1):0)+(v.syr==='inj'?Math.ceil(doses*1.1):0)+(v.dil?Math.ceil(vials*1.1):0);
+  });
+  document.getElementById('tot_doses').textContent    = Math.round(tDoses).toLocaleString();
+  document.getElementById('tot_vials').textContent    = Math.round(tVials).toLocaleString();
+  document.getElementById('tot_soh').textContent      = tSoh.toLocaleString();
+  document.getElementById('tot_req').textContent      = Math.ceil(tReq).toLocaleString();
+  document.getElementById('tot_s05').textContent      = tS05.toLocaleString();
+  document.getElementById('tot_s5').textContent       = tS5.toLocaleString();
+  document.getElementById('tot_s2').textContent       = tS2.toLocaleString();
+  document.getElementById('tot_sb').textContent       = Math.ceil(tSb/SAFETY_BOX_PER).toLocaleString();
+}
+
+// ─── Save to localStorage ──────────────────────────────────────────────────
+function getFormData() {
+  const data = {
+    clinic:  document.getElementById('clinicName').value,
+    gov:     document.getElementById('clinicGov').value,
+    period:  document.getElementById('clinicPeriod').value,
+    date:    document.getElementById('clinicDate').value,
+    pop:     document.getElementById('targetPop').value,
+    notes:   document.getElementById('formNotes').value,
+    soh:     {},
+    equip:   {},
+  };
+  VACCINES.forEach((_, i) => {
+    const v = document.getElementById(`soh_${i}`).value;
+    if (v !== '') data.soh[i] = v;
+  });
+  document.querySelectorAll('.equip-input').forEach(el => {
+    if (el.value !== '') data.equip[el.dataset.key] = el.value;
+  });
+  return data;
+}
+
+function saveForm() {
+  const data = getFormData();
+  const key = `forecast_${data.clinic||'unnamed'}_${data.period}`;
+  localStorage.setItem(key, JSON.stringify(data));
+  showToast('Saved to browser storage ✓');
+}
+
+function loadForm() {
+  // try to restore last saved
+  const keys = Object.keys(localStorage).filter(k => k.startsWith('forecast_'));
+  if (!keys.length) return;
+  const data = JSON.parse(localStorage.getItem(keys[keys.length-1]));
+  if (!data) return;
+  document.getElementById('clinicName').value   = data.clinic  || '';
+  document.getElementById('clinicGov').value    = data.gov     || '';
+  document.getElementById('clinicPeriod').value = data.period  || '2026';
+  document.getElementById('clinicDate').value   = data.date    || '';
+  document.getElementById('targetPop').value    = data.pop     || 1200;
+  document.getElementById('formNotes').value    = data.notes   || '';
+  Object.entries(data.soh||{}).forEach(([i,v]) => {
+    const el = document.getElementById(`soh_${i}`);
+    if (el) el.value = v;
+  });
+  Object.entries(data.equip||{}).forEach(([k,v]) => {
+    const el = document.querySelector(`.equip-input[data-key="${k}"]`);
+    if (el) el.value = v;
+  });
+  recalcAll();
+}
+
+function clearForm() {
+  if (!confirm('Clear all data?')) return;
+  document.getElementById('clinicName').value = '';
+  document.getElementById('clinicGov').value  = '';
+  document.getElementById('targetPop').value  = 1200;
+  document.getElementById('formNotes').value  = '';
+  document.querySelectorAll('[id^="soh_"]').forEach(el => el.value = '');
+  document.querySelectorAll('.equip-input').forEach(el => el.value = '');
+  recalcAll();
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 2500);
+}
+
+// ─── Export Excel (SheetJS) ────────────────────────────────────────────────
+function exportExcel() {
+  const wb = XLSX.utils.book_new();
+  const pop = parseInt(document.getElementById('targetPop').value) || 0;
+  const rows = [];
+
+  // title
+  rows.push(['Vaccine and Supplies Forecast Gaza Strip – Period of 2026']);
+  rows.push([]);
+  // clinic info
+  rows.push([
+    'Clinic:', document.getElementById('clinicName').value,
+    'Governorate:', document.getElementById('clinicGov').value,
+    'Period:', document.getElementById('clinicPeriod').value,
+    'Date:', document.getElementById('clinicDate').value,
+  ]);
+  rows.push(['Target Population:', pop]);
+  rows.push([]);
+
+  // header
+  rows.push([
+    'Vaccine',
+    'Est. Target Pop',
+    'Dose/Child',
+    'Doses Forecast',
+    'Vials Forecast',
+    'SOH in Vials (Jan 2026)',
+    'Required Vials',
+    'Unit Price USD',
+    '0.05ml Syringes',
+    '0.5ml Syringes',
+    '2ml Syringes',
+    'Safety Boxes',
+  ]);
+
+  VACCINES.forEach((v, i) => {
+    const doses = Math.ceil(pop * v.dc * v.waste);
+    const vials = parseFloat((doses / v.vial).toFixed(1));
+    const sohEl = document.getElementById(`soh_${i}`);
+    const soh   = sohEl && sohEl.value !== '' ? parseInt(sohEl.value) : '';
+    const req   = soh !== '' ? Math.max(0, vials - soh) : vials;
+    const s05   = v.syr === 'bcg' ? Math.ceil(doses * 1.1) : 0;
+    const s5    = v.syr === 'inj' ? Math.ceil(doses * 1.1) : 0;
+    const s2    = v.dil ? Math.ceil(vials * 1.1) : 0;
+    const sb    = Math.ceil((s05+s5+s2)/SAFETY_BOX_PER*10)/10;
+    rows.push([v.en, pop, v.dc, doses, vials, soh||0, Math.ceil(req), v.price, s05||'–', s5||'–', s2||'–', sb||'–']);
+  });
+
+  rows.push([]);
+  rows.push(['Equipment / Stationery requests:']);
+
+  // equipment
+  document.querySelectorAll('.equip-input[type="number"]').forEach(el => {
+    if (el.value && parseInt(el.value) > 0) {
+      const row = el.closest('tr');
+      const item = row.querySelector('td:first-child').textContent.trim();
+      rows.push([item, el.value]);
+    }
+  });
+
+  if (document.getElementById('formNotes').value) {
+    rows.push([]);
+    rows.push(['Notes:', document.getElementById('formNotes').value]);
+  }
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [{wch:45},{wch:14},{wch:10},{wch:14},{wch:13},{wch:18},{wch:13},{wch:13},{wch:13},{wch:13},{wch:10},{wch:12}];
+  XLSX.utils.book_append_sheet(wb, ws, 'Forecast 2026');
+  const clinic = document.getElementById('clinicName').value.replace(/[\/\\:*?"<>|]/g,'-') || 'Clinic';
+  XLSX.writeFile(wb, `Vaccine_Forecast_2026_${clinic}.xlsx`);
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────
+buildTable();
+recalcAll();
+document.getElementById('clinicDate').value = new Date().toISOString().split('T')[0];
+// try restore
+try { loadForm(); } catch(e) {}
+</script>
+</body>
+</html>
