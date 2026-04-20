@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+{% block title %}ملخص المخزون السنوي – {{ fac['name'] }}{% endblock %}
+{% block content %}
+
+<div class="d-flex align-items-center gap-3 mb-3 flex-wrap">
+  <a href="/stock/{{ fac['id'] }}?year={{ year }}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-right"></i> الإدخال الشهري
+  </a>
+  <a href="/facility/{{ fac['id'] }}?year={{ year }}" class="btn btn-outline-primary btn-sm">
+    <i class="bi bi-clipboard2-pulse"></i> بيانات التطعيم
+  </a>
+  <div>
+    <h5 class="mb-0"><i class="bi bi-bar-chart-line text-secondary"></i> ملخص المخزون السنوي</h5>
+    <small class="text-muted">{{ fac['name'] }} | {{ fac['governorate'] }} | {{ year }}</small>
+  </div>
+  <div class="ms-auto">
+    <a href="/export_stock/{{ fac['id'] }}?year={{ year }}" class="btn btn-success btn-sm">
+      <i class="bi bi-file-earmark-excel"></i> تصدير Excel
+    </a>
+  </div>
+</div>
+
+<!-- Summary Table -->
+<div class="card shadow-sm mb-3">
+  <div class="card-header section-header">
+    <i class="bi bi-table"></i> حركة المخزون الشهرية – {{ year }}
+    <small class="text-white opacity-75 me-3">افتتاحي + وارد − معطى − هدر = إغلاق</small>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-bordered table-sm mb-0" style="font-size:.78rem;min-width:1200px">
+      <thead>
+        <tr class="table-header-row">
+          <th class="antigen-col">اللقاح</th>
+          {% for m in months_ar %}
+          <th class="text-center" style="min-width:55px">{{ m[:3] }}</th>
+          {% endfor %}
+          <th class="text-center annual-col">إجمالي الوارد</th>
+          <th class="text-center annual-col">إجمالي المعطى</th>
+          <th class="text-center annual-col">إجمالي الهدر</th>
+          <th class="text-center" style="min-width:70px;background:#1FA2C8!important;color:#fff!important">الرصيد الحالي</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for v in vaccines %}
+        {% set vdata = sdata.get(v['key'], {}) %}
+        {% set row_class = 'row-blue' if loop.index is odd else 'row-yellow' %}
+        <tr class="{{ row_class }}">
+          <td class="antigen-label fw-semibold">{{ v['label'] }}</td>
+          {% set ns = namespace(prev=none, tot_recv=0, tot_admin=0, tot_waste=0, last_close=none) %}
+          {% for mi in range(1,13) %}
+            {% set md = vdata.get(mi) %}
+            {% if md %}
+              {% set o = md['opening'] if md['opening'] is not none else (ns.prev if ns.prev is not none else 0) %}
+              {% set r = md['received'] or 0 %}
+              {% set a = md['administered'] or 0 %}
+              {% set w = md['wastage'] or 0 %}
+              {% set cl = o + r - a - w %}
+              {% set ns.prev = cl %}
+              {% set ns.tot_recv  = ns.tot_recv  + r %}
+              {% set ns.tot_admin = ns.tot_admin + a %}
+              {% set ns.tot_waste = ns.tot_waste + w %}
+              {% set ns.last_close = cl %}
+              <td class="text-center fw-semibold {% if cl < 0 %}text-danger{% elif cl == 0 %}text-warning{% else %}text-success{% endif %}">
+                {{ cl }}
+              </td>
+            {% else %}
+              <td class="text-center text-muted">–</td>
+            {% endif %}
+          {% endfor %}
+          <td class="text-center fw-bold" style="background:#e8f4fd">{{ ns.tot_recv if ns.tot_recv > 0 else '–' }}</td>
+          <td class="text-center fw-bold" style="background:#e8f4fd">{{ ns.tot_admin if ns.tot_admin > 0 else '–' }}</td>
+          <td class="text-center fw-bold {% if ns.tot_waste > 0 %}text-warning{% endif %}" style="background:#e8f4fd">{{ ns.tot_waste if ns.tot_waste > 0 else '–' }}</td>
+          <td class="text-center fw-bold fs-6
+            {% if ns.last_close is none %}text-muted
+            {% elif ns.last_close < 0 %}text-danger
+            {% elif ns.last_close == 0 %}text-warning
+            {% else %}text-success{% endif %}"
+            style="background:#f0faff">
+            {% if ns.last_close is none %}–
+            {% else %}{{ ns.last_close }}{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Quick month links -->
+<div class="card shadow-sm mb-3">
+  <div class="card-header section-header"><i class="bi bi-calendar3"></i> الانتقال للإدخال الشهري</div>
+  <div class="card-body d-flex flex-wrap gap-2">
+    {% for i in range(1,13) %}
+    {% set has_data = sdata.values()|selectattr(i|string,'defined')|list|length > 0 %}
+    <a href="/stock/{{ fac['id'] }}?year={{ year }}&month={{ i }}"
+       class="btn btn-sm {% if sdata and sdata.values()|map(attribute=i)|select('ne',none)|list|length > 0 %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+      {{ months_ar[i-1] }}
+    </a>
+    {% endfor %}
+  </div>
+</div>
+
+{% endblock %}

@@ -19,6 +19,14 @@
     <small class="text-muted">{{ fac['governorate'] }} | {{ fac['type'] }} | {{ fac['provider'] }}</small>
   </div>
   <span class="badge bg-info ms-1 fs-6"><i class="bi bi-boxes"></i> سجل المخزون الشهري</span>
+  <div class="ms-auto d-flex gap-2">
+    <a href="/stock_summary/{{ fac['id'] }}?year={{ year }}" class="btn btn-secondary btn-sm">
+      <i class="bi bi-bar-chart-line"></i> ملخص سنوي
+    </a>
+    <a href="/export_stock/{{ fac['id'] }}?year={{ year }}" class="btn btn-success btn-sm">
+      <i class="bi bi-file-earmark-excel"></i> تصدير Excel
+    </a>
+  </div>
 </div>
 
 <form method="post">
@@ -92,13 +100,15 @@
             {{ v['label'] }}
             <small class="text-muted d-block" style="font-size:.72rem">فيال {{ v['vial'] }} جرعة</small>
           </td>
-          <!-- Opening -->
-          <td class="p-1">
+          <!-- Opening (auto-filled from prev month closing if blank) -->
+          {% set auto_open = prev_closing.get(v['key']) %}
+          <td class="p-1" title="{{ '← من إغلاق ' + months_ar[month-2] if auto_open is not none and not (d and d['opening'] is not none) else '' }}">
             <input type="number" name="{{ v['key'] }}_opening"
                    class="form-control form-control-sm stock-input text-center p-1"
-                   style="background:#E3F2FD;border-color:#90CAF9"
-                   value="{{ d['opening'] if d and d['opening'] is not none else '' }}"
-                   min="0" placeholder="–" data-field="opening">
+                   style="background:{% if d and d['opening'] is not none %}#E3F2FD{% elif auto_open is not none %}#E8F5E9{% else %}#E3F2FD{% endif %};border-color:#90CAF9"
+                   value="{{ d['opening'] if d and d['opening'] is not none else (auto_open if auto_open is not none else '') }}"
+                   min="0" placeholder="–" data-field="opening"
+                   {% if auto_open is not none and not (d and d['opening'] is not none) %}title="تلقائي من إغلاق {{ months_ar[month-2] if month > 1 else 'ديسمبر' }}: {{ auto_open }}"{% endif %}>
           </td>
           <!-- Received -->
           <td class="p-1">

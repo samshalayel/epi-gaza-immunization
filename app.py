@@ -544,12 +544,140 @@ def stock(fid):
     rows = conn.execute(
         'SELECT antigen,opening,received,administered,wastage FROM stock_log WHERE facility_id=? AND year=? AND month=?',
         (fid, year, month)).fetchall()
-    conn.close()
     data = {r['antigen']: r for r in rows}
+
+    # Auto-fill opening from previous month's closing if not yet set
+    prev_month = month - 1
+    prev_year  = year
+    if prev_month == 0:
+        prev_month = 12
+        prev_year  = year - 1
+    prev_rows = conn.execute(
+        'SELECT antigen,opening,received,administered,wastage FROM stock_log WHERE facility_id=? AND year=? AND month=?',
+        (fid, prev_year, prev_month)).fetchall()
+    prev_closing = {}
+    for r in prev_rows:
+        o = r['opening'] or 0; rc = r['received'] or 0
+        a = r['administered'] or 0; w = r['wastage'] or 0
+        prev_closing[r['antigen']] = o + rc - a - w
+
+    conn.close()
     saved = request.args.get('saved', 0)
     return render_template('stock.html', fac=fac, year=year, month=month,
                            vaccines=STOCK_VACCINES, months=MONTHS, months_ar=MONTHS_AR,
-                           data=data, saved=saved)
+                           data=data, prev_closing=prev_closing, saved=saved)
+
+
+@app.route('/export_stock/<int:fid>')
+def export_stock(fid):
+    year = request.args.get('year', 2026, type=int)
+    conn = get_db()
+    fac  = conn.execute('SELECT * FROM facilities WHERE id=?', (fid,)).fetchone()
+    rows = conn.execute(
+        'SELECT month,antigen,opening,received,administered,wastage FROM stock_log WHERE facility_id=? AND year=? ORDER BY antigen,month',
+        (fid, year)).fetchall()
+    conn.close()
+
+    # Build {antigen: {month: row}}
+    sdata = {}
+    for r in rows:
+        sdata.setdefault(r['antigen'], {})[r['month']] = r
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'Stock Log'
+
+    # Title
+    ws.merge_cells('A1:R1')
+    ws['A1'].value = f'Stock Log – {fac["name"]} – {year}'
+    ws['A1'].font  = Font(name='Arial', bold=True, size=12, color='FFFFFF')
+    ws['A1'].fill  = HDR_FILL
+    ws['A1'].alignment = CTR
+
+    # Headers row 2: Vaccine | Jan (Open,Recv,Admin,Waste,Close) | Feb ... | Dec
+    ws.cell(row=2, column=1, value='Vaccine').font = WHT_FONT
+    ws.cell(row=2, column=1).fill = HDR_FILL
+    ws.cell(row=2, column=1).alignment = CTR
+
+    COL = 2
+    month_cols = {}
+    for mi, m in enumerate(MONTHS):
+        ws.merge_cells(start_row=2, start_column=COL, end_row=2, end_column=COL+4)
+        c = ws.cell(row=2, column=COL, value=m)
+        c.font = WHT_FONT; c.fill = HDR2_FILL if mi%2 else HDR_FILL; c.alignment = CTR
+        month_cols[mi+1] = COL
+        for j, sub in enumerate(['Open','Recv','Admin','Waste','Close']):
+            sc = ws.cell(row=3, column=COL+j, value=sub)
+            sc.font = WHT_FONT; sc.fill = HDR2_FILL; sc.alignment = CTR; sc.border = BORDER
+        COL += 5
+
+    ws.row_dimensions[2].height = 18
+    ws.row_dimensions[3].height = 14
+
+    # Data rows
+    for vi, v in enumerate(STOCK_VACCINES):
+        r = 4 + vi
+        fill = BLUE_FILL if vi%2==0 else YELL_FILL
+        ws.cell(row=r, column=1, value=v['label']).font  = BLD_FONT
+        ws.cell(row=r, column=1).fill = fill
+        ws.cell(row=r, column=1).border = BORDER
+
+        prev_close = None
+        for mi in range(1, 13):
+            sc = month_cols[mi]
+            md = sdata.get(v['key'], {}).get(mi)
+            o  = md['opening']      if md and md['opening']      is not None else (prev_close if prev_close is not None else None)
+            rc = md['received']     if md and md['received']     is not None else None
+            a  = md['administered'] if md and md['administered'] is not None else None
+            w  = md['wastage']      if md and md['wastage']      is not None else None
+            cl = (o or 0) + (rc or 0) - (a or 0) - (w or 0) if any(x is not None for x in [o,rc,a,w]) else None
+            prev_close = cl
+
+            for j, val in enumerate([o, rc, a, w, cl]):
+                cell = ws.cell(row=r, column=sc+j, value=val)
+                cell.fill = fill; cell.border = BORDER; cell.alignment = CTR
+                if val is not None:
+                    cell.number_format = '#,##0'
+                if j == 4 and cl is not None:  # closing col
+                    if cl < 0:   cell.font = Font(name='Arial', size=9, bold=True, color='FF0000')
+                    elif cl == 0: cell.font = Font(name='Arial', size=9, bold=True, color='FF9900')
+                    else:         cell.font = Font(name='Arial', size=9, bold=True, color='00B050')
+                else:
+                    cell.font = NRM_FONT
+
+        ws.row_dimensions[r].height = 16
+
+    ws.column_dimensions['A'].width = 20
+    for mi in range(1, 13):
+        for j in range(5):
+            ws.column_dimensions[get_column_letter(month_cols[mi]+j)].width = 8
+    ws.freeze_panes = 'B4'
+
+    buf = io.BytesIO()
+    wb.save(buf); buf.seek(0)
+    safe = str(fac['name']).replace(' ','_').replace('/','–')
+    return send_file(buf, as_attachment=True,
+                     download_name=f'StockLog_{safe}_{year}.xlsx',
+                     mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+
+@app.route('/stock_summary/<int:fid>')
+def stock_summary(fid):
+    year = request.args.get('year', 2026, type=int)
+    conn = get_db()
+    fac  = conn.execute('SELECT * FROM facilities WHERE id=?', (fid,)).fetchone()
+    if not fac:
+        conn.close(); return redirect(url_for('index'))
+    rows = conn.execute(
+        'SELECT month,antigen,opening,received,administered,wastage FROM stock_log WHERE facility_id=? AND year=? ORDER BY antigen,month',
+        (fid, year)).fetchall()
+    conn.close()
+    sdata = {}
+    for r in rows:
+        sdata.setdefault(r['antigen'], {})[r['month']] = r
+    return render_template('stock_summary.html', fac=fac, year=year,
+                           vaccines=STOCK_VACCINES, months=MONTHS, months_ar=MONTHS_AR,
+                           sdata=sdata)
 
 
 if __name__ == '__main__':
