@@ -241,9 +241,15 @@
               <tr><td>Spare Thermometer</td>
                 <td><input type="number" class="equip-input" data-key="spare_thermo" min="0" placeholder="0"></td>
                 <td><input type="text" class="equip-input" data-key="spare_thermo_note" placeholder="note" style="width:90px"></td></tr>
-              <tr><td>Other / أخرى</td>
-                <td><input type="number" class="equip-input" data-key="other_equip" min="0" placeholder="0"></td>
-                <td><input type="text" class="equip-input" data-key="other_equip_note" placeholder="note" style="width:90px"></td></tr>
+              <tr style="background:#E8F5E9">
+                <td>
+                  <span class="fw-bold" style="color:#1B5E20">Other / أخرى</span><br>
+                  <input type="text" class="equip-input mt-1" data-key="other_equip_desc"
+                    placeholder="Description / الوصف..." style="width:100%;max-width:220px;border-color:#A5D6A7">
+                </td>
+                <td><input type="number" class="equip-input" data-key="other_equip" min="0" placeholder="0" style="border-color:#A5D6A7"></td>
+                <td><input type="text" class="equip-input" data-key="other_equip_note" placeholder="note" style="width:90px;border-color:#A5D6A7"></td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -288,6 +294,15 @@
               <tr><td>AEFI Booklet</td>
                 <td><input type="number" class="equip-input" data-key="aefi" min="0" placeholder="0"></td>
                 <td><input type="text" class="equip-input" data-key="aefi_note" placeholder="note" style="width:90px"></td></tr>
+              <tr style="background:#F3E5F5">
+                <td>
+                  <span class="fw-bold text-purple" style="color:#6A1B9A">Other / أخرى</span><br>
+                  <input type="text" class="equip-input mt-1" data-key="stat_other_desc"
+                    placeholder="Description / الوصف..." style="width:100%;max-width:280px;border-color:#CE93D8">
+                </td>
+                <td><input type="number" class="equip-input" data-key="stat_other_qty" min="0" placeholder="0" style="border-color:#CE93D8"></td>
+                <td><input type="text" class="equip-input" data-key="stat_other_note" placeholder="note" style="width:90px;border-color:#CE93D8"></td>
+              </tr>
             </tbody>
           </table>
         </div>
