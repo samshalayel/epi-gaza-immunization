@@ -95,7 +95,7 @@
         <span class="info-label d-flex align-items-center ms-2">Type / النوع</span>
         <input id="clinicType" class="info-val" type="text" readonly style="min-width:120px;background:#f0f8ff">
         <span class="info-label d-flex align-items-center ms-2">Period / الفترة</span>
-        <input id="clinicPeriod" class="info-val" type="text" value="2026" style="width:100px">
+        <input id="clinicPeriod" class="info-val" type="text" value="2026" style="width:100px" onchange="onYearChange()" onblur="onYearChange()">
         <span class="info-label d-flex align-items-center ms-2">Date / التاريخ</span>
         <input id="clinicDate" class="info-val" type="date" style="width:145px">
       </div>
@@ -612,13 +612,43 @@ function onFacilityChange() {
   if (selectedFacility) {
     document.getElementById('clinicGov').value  = selectedFacility.governorate || '';
     document.getElementById('clinicType').value = (selectedFacility.type || '') + (selectedFacility.provider ? ' – ' + selectedFacility.provider : '');
-    // load existing forecast from DB
+    // clear form then load from DB
+    resetFormFields();
     const year = document.getElementById('clinicPeriod').value || '2026';
     loadForecastForFacility(selectedFacility.id, year);
   } else {
     document.getElementById('clinicGov').value  = '';
     document.getElementById('clinicType').value = '';
   }
+}
+
+// called when year changes — reload data for selected facility
+function onYearChange() {
+  if (selectedFacility) {
+    resetFormFields();
+    const year = document.getElementById('clinicPeriod').value || '2026';
+    loadForecastForFacility(selectedFacility.id, year);
+  }
+}
+
+// ─── Reset all editable fields to blank/zero (ready for fresh entry) ───────
+function resetFormFields() {
+  document.getElementById('targetPop').value = '';
+  document.getElementById('clinicDate').value = '';
+  document.getElementById('formNotes').value = '';
+  // SOH inputs → empty
+  document.querySelectorAll('[id^="soh_"]').forEach(el => { el.value = ''; });
+  // equipment inputs → empty
+  document.querySelectorAll('.equip-input').forEach(el => { el.value = ''; });
+  // cold chain → back to defaults
+  coldChainRows = [
+    {type:'Refrigerator',   model:'', manufacturer:'', functional:'Yes', reason:''},
+    {type:'Deep Freezer',   model:'', manufacturer:'', functional:'Yes', reason:''},
+    {type:'Vaccine Carrier',model:'', manufacturer:'', functional:'Yes', reason:''},
+    {type:'Cold Box',       model:'', manufacturer:'', functional:'Yes', reason:''},
+  ];
+  renderColdChain();
+  recalcAll();
 }
 
 // ─── Collect form data ─────────────────────────────────────────────────────
@@ -682,11 +712,18 @@ async function saveForm() {
 
 // ─── Load from API (called when facility changes) ──────────────────────────
 async function loadForecastForFacility(facId, year) {
+  // show loading indicator in the toast area
+  showToast('⏳ Loading…', 'info');
   try {
     const rec = await api.getForecast(facId, year);
-    if (!rec || !rec.id) return; // no record yet
 
-    // populate fields from DB record
+    if (!rec || !rec.id) {
+      // No record — form is already cleared, ready for new entry
+      showToast('📋 No record yet — form cleared, ready to enter data', 'info');
+      return;
+    }
+
+    // ── Populate from DB record ──────────────────────────────────────────
     if (rec.target_population) document.getElementById('targetPop').value = rec.target_population;
     if (rec.date)               document.getElementById('clinicDate').value = rec.date;
     if (rec.notes)              document.getElementById('formNotes').value  = rec.notes;
@@ -710,17 +747,11 @@ async function loadForecastForFacility(facId, year) {
     }
 
     recalcAll();
-    showToast('↓ Loaded from database', 'info');
+    const updated = rec.updated_at ? ' (' + rec.updated_at.slice(0,10) + ')' : '';
+    showToast('✓ Loaded from database' + updated, 'info');
+
   } catch(e) {
-    // 404 means no record yet — silently ignore, try localStorage fallback
-    const local = localStorage.getItem(`forecast_${facId}_${year}`);
-    if (local) {
-      try {
-        const data = JSON.parse(local);
-        applyFormData(data);
-        showToast('↓ Loaded from local storage (no server record)', 'info');
-      } catch(_) {}
-    }
+    showToast('⚠ Could not reach server — form ready for entry', 'warning');
   }
 }
 
