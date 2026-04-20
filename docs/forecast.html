@@ -115,6 +115,38 @@
     </div>
   </div>
 
+  <!-- COLD CHAIN EQUIPMENT AVAILABLE -->
+  <div class="card shadow-sm mb-3">
+    <div class="section-hdr2 d-flex justify-content-between align-items-center">
+      <span><i class="bi bi-snow2"></i> Refrigerator Available / المعدات الباردة المتوفرة بالعيادة</span>
+      <button class="btn btn-light btn-sm fw-bold" onclick="addEquipRow()" style="color:#1B5E20">
+        <i class="bi bi-plus-circle"></i> Add Row
+      </button>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-bordered mb-0" id="coldChainTable" style="font-size:12px">
+        <thead>
+          <tr>
+            <th rowspan="2" style="background:#00695C;color:#fff;min-width:140px;vertical-align:middle">Type / النوع</th>
+            <th colspan="4" style="background:#00897B;color:#fff;text-align:center">Refrigerator Available / المتوفر</th>
+            <th rowspan="2" style="background:#00695C;color:#fff;width:36px;vertical-align:middle" class="no-print">
+              <i class="bi bi-trash3"></i>
+            </th>
+          </tr>
+          <tr>
+            <th style="background:#00897B;color:#fff;min-width:120px">Model / الموديل</th>
+            <th style="background:#00897B;color:#fff;min-width:110px">Manufacturer / الشركة</th>
+            <th style="background:#00897B;color:#fff;min-width:100px;text-align:center">Functional?<br>يعمل؟</th>
+            <th style="background:#00897B;color:#fff;min-width:180px">Reason if not Functional<br>سبب عدم العمل</th>
+          </tr>
+        </thead>
+        <tbody id="coldChainBody">
+          <!-- default rows -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
   <!-- VACCINES TABLE -->
   <div class="card shadow-sm mb-3">
     <div class="section-hdr">
@@ -295,6 +327,87 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <script src="js/api.js"></script>
 <script>
+// ─── Cold Chain Equipment ─────────────────────────────────────────────────
+const CC_TYPES = ['Refrigerator','Deep Freezer','Vaccine Carrier','Cold Box'];
+
+let coldChainRows = [
+  {type:'Refrigerator',   model:'', manufacturer:'', functional:'Yes', reason:''},
+  {type:'Deep Freezer',   model:'', manufacturer:'', functional:'Yes', reason:''},
+  {type:'Vaccine Carrier',model:'', manufacturer:'', functional:'Yes', reason:''},
+  {type:'Cold Box',       model:'', manufacturer:'', functional:'Yes', reason:''},
+];
+
+function renderColdChain() {
+  const body = document.getElementById('coldChainBody');
+  body.innerHTML = '';
+  coldChainRows.forEach((row, i) => {
+    const bg = i % 2 === 0 ? '#E8F5E9' : '#F1F8E9';
+    body.innerHTML += `
+    <tr style="background:${bg}">
+      <td>
+        <select class="form-select form-select-sm cc-input" data-idx="${i}" data-field="type"
+          style="border:1px solid #A5D6A7;font-size:12px">
+          ${CC_TYPES.map(t => `<option${t===row.type?' selected':''}>${t}</option>`).join('')}
+          <option value="Other"${row.type==='Other'?' selected':''}>Other / أخرى</option>
+        </select>
+      </td>
+      <td><input type="text" class="form-control form-control-sm cc-input" data-idx="${i}" data-field="model"
+        value="${row.model}" placeholder="e.g. SDD 165L" style="font-size:12px;border-color:#A5D6A7"></td>
+      <td><input type="text" class="form-control form-control-sm cc-input" data-idx="${i}" data-field="manufacturer"
+        value="${row.manufacturer}" placeholder="e.g. Haier, Vestfrost" style="font-size:12px;border-color:#A5D6A7"></td>
+      <td style="text-align:center">
+        <select class="form-select form-select-sm cc-input" data-idx="${i}" data-field="functional"
+          onchange="toggleReason(${i},this.value)"
+          style="font-size:12px;font-weight:700;border-color:#A5D6A7;
+            color:${row.functional==='Yes'?'#2E7D32':row.functional==='No'?'#C62828':'#E65100'}">
+          <option${row.functional==='Yes'?' selected':''}>Yes</option>
+          <option${row.functional==='No'?' selected':''}>No</option>
+          <option${row.functional==='Partial'?' selected':''}>Partial</option>
+        </select>
+      </td>
+      <td><input type="text" class="form-control form-control-sm cc-input" data-idx="${i}" data-field="reason"
+        value="${row.reason}" placeholder="${row.functional!=='Yes'?'Enter reason...':'–'}"
+        ${row.functional==='Yes'?'disabled':''} id="reason_${i}"
+        style="font-size:12px;border-color:#FFCC80;background:${row.functional!=='Yes'?'#FFF9C4':'#f5f5f5'}"></td>
+      <td class="text-center no-print">
+        <button class="btn btn-outline-danger btn-sm py-0 px-1" onclick="removeEquipRow(${i})" title="Remove">
+          <i class="bi bi-trash3" style="font-size:11px"></i>
+        </button>
+      </td>
+    </tr>`;
+  });
+  // attach listeners
+  document.querySelectorAll('.cc-input').forEach(el => {
+    el.addEventListener('change', () => {
+      const idx   = parseInt(el.dataset.idx);
+      const field = el.dataset.field;
+      coldChainRows[idx][field] = el.value;
+      if (field === 'functional') renderColdChain();
+    });
+    el.addEventListener('input', () => {
+      const idx   = parseInt(el.dataset.idx);
+      const field = el.dataset.field;
+      coldChainRows[idx][field] = el.value;
+    });
+  });
+}
+
+function toggleReason(idx, val) {
+  coldChainRows[idx].functional = val;
+  renderColdChain();
+}
+
+function addEquipRow() {
+  coldChainRows.push({type:'Refrigerator', model:'', manufacturer:'', functional:'Yes', reason:''});
+  renderColdChain();
+}
+
+function removeEquipRow(idx) {
+  if (coldChainRows.length <= 1) return;
+  coldChainRows.splice(idx, 1);
+  renderColdChain();
+}
+
 // ─── Load global settings from admin panel ────────────────────────────────
 const SETTINGS_KEY = 'epi_forecast_settings_v1';
 function loadGlobalSettings() {
@@ -491,8 +604,9 @@ function getFormData() {
     date:    document.getElementById('clinicDate').value,
     pop:     document.getElementById('targetPop').value,
     notes:   document.getElementById('formNotes').value,
-    soh:     {},
-    equip:   {},
+    soh:      {},
+    equip:    {},
+    coldChain: coldChainRows.map(r => Object.assign({}, r)),
   };
   VACCINES.forEach((_, i) => {
     const v = document.getElementById(`soh_${i}`).value;
@@ -534,6 +648,10 @@ function loadForm() {
     const el = document.querySelector(`.equip-input[data-key="${k}"]`);
     if (el) el.value = v;
   });
+  if (data.coldChain && data.coldChain.length) {
+    coldChainRows = data.coldChain;
+    renderColdChain();
+  }
   recalcAll();
 }
 
@@ -617,6 +735,12 @@ function exportExcel() {
     }
   });
 
+  // Cold chain
+  rows.push([]);
+  rows.push(['Cold Chain Equipment Available / المعدات الباردة المتوفرة']);
+  rows.push(['Type','Model','Manufacturer','Functional?','Reason if not Functional']);
+  coldChainRows.forEach(r => rows.push([r.type, r.model, r.manufacturer, r.functional, r.reason]));
+
   if (document.getElementById('formNotes').value) {
     rows.push([]);
     rows.push(['Notes:', document.getElementById('formNotes').value]);
@@ -630,6 +754,7 @@ function exportExcel() {
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────
+renderColdChain();
 buildTable();
 recalcAll();
 document.getElementById('clinicDate').value = new Date().toISOString().split('T')[0];
