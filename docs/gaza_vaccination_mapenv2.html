@@ -14,6 +14,48 @@
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:Arial,sans-serif;direction:ltr}
 #app{display:flex;height:100vh;width:100vw}
+
+/* ── Lock Screen ── */
+#lockScreen{
+  position:fixed;inset:0;z-index:99999;
+  background:linear-gradient(135deg,#0D2137 0%,#1F4E79 50%,#0D3B6E 100%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;
+  transition:opacity .5s;
+}
+#lockScreen.fade-out{opacity:0;pointer-events:none;}
+.lock-logo{font-size:64px;line-height:1;filter:drop-shadow(0 4px 16px rgba(0,0,0,.5));}
+.lock-title{color:#fff;font-size:20px;font-weight:700;text-align:center;line-height:1.4;
+  text-shadow:0 2px 8px rgba(0,0,0,.4);}
+.lock-sub{color:rgba(255,255,255,.6);font-size:13px;text-align:center;}
+.pin-boxes{display:flex;gap:12px;}
+.pin-box{
+  width:52px;height:62px;border-radius:12px;border:2px solid rgba(255,255,255,.25);
+  background:rgba(255,255,255,.1);color:#fff;font-size:26px;font-weight:800;
+  text-align:center;outline:none;caret-color:transparent;
+  transition:border-color .15s,background .15s;letter-spacing:0;
+  backdrop-filter:blur(6px);
+}
+.pin-box:focus{border-color:#FFD700;background:rgba(255,215,0,.15);}
+.pin-box.filled{border-color:rgba(255,255,255,.6);background:rgba(255,255,255,.18);}
+#lockError{
+  color:#FF6B6B;font-size:13px;font-weight:700;text-align:center;
+  height:18px;transition:opacity .2s;
+}
+#lockError.shake{animation:shake .4s;}
+@keyframes shake{
+  0%,100%{transform:translateX(0)}
+  20%{transform:translateX(-8px)}
+  40%{transform:translateX(8px)}
+  60%{transform:translateX(-6px)}
+  80%{transform:translateX(6px)}
+}
+.lock-btn{
+  padding:12px 40px;background:#1FA2C8;color:#fff;border:none;border-radius:10px;
+  font-size:15px;font-weight:700;cursor:pointer;transition:.15s;
+  box-shadow:0 4px 16px rgba(31,162,200,.4);
+}
+.lock-btn:hover{background:#178DB0;transform:translateY(-1px);}
+.lock-footer{color:rgba(255,255,255,.35);font-size:11px;text-align:center;}
 #sidebar-wrap{position:relative;display:flex;flex-shrink:0}
 #sidebar{width:280px;min-width:280px;background:#1F4E79;color:#fff;display:flex;flex-direction:column;overflow-y:auto;box-shadow:2px 0 8px rgba(0,0,0,.3);z-index:1000;transition:width .3s,min-width .3s}
 #sidebar.collapsed{width:0;min-width:0;overflow:hidden}
@@ -147,6 +189,29 @@ body{font-family:Arial,sans-serif;direction:ltr}
 </style>
 </head>
 <body>
+<!-- ══ LOCK SCREEN ══════════════════════════════════════════ -->
+<div id="lockScreen">
+  <div class="lock-logo">🗺️</div>
+  <div>
+    <div class="lock-title">Gaza EPI Vaccination Map<br>خريطة التطعيم – قطاع غزة</div>
+    <div class="lock-sub" style="margin-top:6px">Enter access code / أدخل كود الدخول</div>
+  </div>
+  <div class="pin-boxes">
+    <input class="pin-box" id="p0" type="password" inputmode="numeric" maxlength="1" pattern="[0-9]">
+    <input class="pin-box" id="p1" type="password" inputmode="numeric" maxlength="1" pattern="[0-9]">
+    <input class="pin-box" id="p2" type="password" inputmode="numeric" maxlength="1" pattern="[0-9]">
+    <input class="pin-box" id="p3" type="password" inputmode="numeric" maxlength="1" pattern="[0-9]">
+    <input class="pin-box" id="p4" type="password" inputmode="numeric" maxlength="1" pattern="[0-9]">
+    <input class="pin-box" id="p5" type="password" inputmode="numeric" maxlength="1" pattern="[0-9]">
+  </div>
+  <div id="lockError">&nbsp;</div>
+  <button class="lock-btn" onclick="checkPin()">
+    <span>&#128275; Unlock / فتح</span>
+  </button>
+  <div class="lock-footer">Gaza EPI Surveillance System · MOH Palestine</div>
+</div>
+<!-- ══════════════════════════════════════════════════════════ -->
+
 <div id="app">
 <div id="sidebar-wrap">
 <div id="sidebar">
@@ -502,6 +567,71 @@ body{font-family:Arial,sans-serif;direction:ltr}
 </div>
 </div>
 <script>
+// ══ ACCESS CODE ════════════════════════════════════════════════
+const ACCESS_PIN = '202626'; // ← change this to your desired 6-digit code
+const SESSION_KEY = 'epi_map_unlocked';
+
+(function initLock(){
+  // Already unlocked this session?
+  if(sessionStorage.getItem(SESSION_KEY) === '1'){
+    document.getElementById('lockScreen').style.display = 'none';
+    return;
+  }
+  // Wire up pin boxes
+  const boxes = Array.from(document.querySelectorAll('.pin-box'));
+  boxes.forEach((box, i) => {
+    box.addEventListener('input', function(){
+      this.value = this.value.replace(/\D/g,'').slice(-1);
+      if(this.value){
+        this.classList.add('filled');
+        if(i < 5) boxes[i+1].focus();
+        else checkPin();
+      } else {
+        this.classList.remove('filled');
+      }
+    });
+    box.addEventListener('keydown', function(e){
+      if(e.key === 'Backspace' && !this.value && i > 0){
+        boxes[i-1].value = '';
+        boxes[i-1].classList.remove('filled');
+        boxes[i-1].focus();
+      }
+      if(e.key === 'Enter') checkPin();
+    });
+    box.addEventListener('paste', function(e){
+      e.preventDefault();
+      const pasted = (e.clipboardData||window.clipboardData).getData('text').replace(/\D/g,'').slice(0,6);
+      pasted.split('').forEach((ch,j) => {
+        if(boxes[j]){ boxes[j].value=ch; boxes[j].classList.add('filled'); }
+      });
+      const last = Math.min(pasted.length, 5);
+      boxes[last].focus();
+      if(pasted.length === 6) checkPin();
+    });
+  });
+  boxes[0].focus();
+})();
+
+function checkPin(){
+  const entered = Array.from(document.querySelectorAll('.pin-box')).map(b=>b.value).join('');
+  if(entered === ACCESS_PIN){
+    sessionStorage.setItem(SESSION_KEY, '1');
+    const ls = document.getElementById('lockScreen');
+    ls.classList.add('fade-out');
+    setTimeout(() => ls.style.display='none', 520);
+  } else {
+    const err = document.getElementById('lockError');
+    err.textContent = '✕ Incorrect code. Try again.  /  كود خاطئ، حاول مجدداً';
+    err.classList.remove('shake');
+    void err.offsetWidth; // force reflow
+    err.classList.add('shake');
+    document.querySelectorAll('.pin-box').forEach(b => { b.value=''; b.classList.remove('filled'); });
+    document.getElementById('p0').focus();
+    setTimeout(() => err.textContent = '\u00a0', 3000);
+  }
+}
+// ═══════════════════════════════════════════════════════════════
+
 const DATA = {"type": "FeatureCollection", "features": [{"type": "Feature", "properties": {"name": "Al Saftawi PHC", "governorate": "North Gaza", "type": "PHC", "provider": "UNRWA", "status": "Functional"}, "geometry": {"type": "Point", "coordinates": [34.47876490400006, 31.53776663700006]}}, {"type": "Feature", "properties": {"name": "Asma' Prep. Girls \"A\" & \"B\"", "governorate": "Gaza City", "type": "Medical Point", "provider": "UNRWA", "status": "Functional"}, "geometry": {"type": "Point", "coordinates": [34.44889695400008, 31.52819899700006]}}, {"type": "Feature", "properties": {"name": "Rimal Elem. Co-ed \"A\" & \"B\"", "governorate": "Gaza City", "type": "Medical Point", "provider": "UNRWA", "status": "Functional"}, "geometry": {"type": "Point", "coordinates": [34.443505550000054, 31.515519510000047]}}, {"type": "Feature", "properties": {"name": "Salah Eddin Prep. Boys \"B\" & \"A\"", "governorate": "Gaza City", "type": "Medical Point", "provider": "UNRWA", "status": "Functional"}, "geometry": {"type": "Point", "coordinates": [34.45579367100004, 31.521171477000053]}}, {"type": "Feature", "properties": {"name": "Elsheikh Radwan PHC", "governorate": "Gaza City", "type": "PHC", "provider": "MOH", "status": "Functional"}, "geometry": {"type": "Point", "coordinates": [34.4706198, 31.5329165]}}, {"type": "Feature", "properties": {"name": "Al-Daraj PHC", "governorate": "Gaza City", "type": "PHC", "provider": "MOH", "status": "Functional"}, "geometry": {"type": "Point", "coordinates": [34.4592854, 31.51275563]}}, {"type": "Feature", "properties": {"name": "Masqat El-Sabra PHC", "governorate": "Gaza City", "type": "PHC", "provider": "MOH", "status": "Functional"}, "geometry": {"type": "Point", "coordinates": [34.4463164608, 31.4986744124]}}, {"type": "Feature", "properties": {"name": "Alsalam PHC", "governorate": "Gaza City", "type": "PHC", "provider": "MOH", "status": "Functional"}, "geometry": {"type": "Point", "coordinates": [34.443056, 31.511111]}}, {"type": "Feature", "properties": {"name": "Al Shetea PHC", "governorate": "Gaza City", "type": "PHC", "provider": "MOH", "status": "Functional"}, "geometry": {"type": "Point", "coordinates": [34.444298, 31.53066]}}, {"type": "Feature", "properties": {"name": "Al Sahaba Medical Point", "governorate": "Gaza City", "type": "Medical Point", "provider": "PRCS", "status": "Functional"}, "geometry": {"type": "Point", "coordinates": [34.46041, 31.51616]}}, {"type": "Feature", "properties": {"name": "Al Qudus Hospital", "governorate": "Gaza City", "type": "Hospital", "provider": "PRCS", "status": "Functional"}, "geometry": {"type": "Point", "coordinates": [34.43054, 31.50608]}}, {"type": "Feature", "properties": {"name": "Blood Bank Medical Point", "governorate": "Gaza City", "type": "Medical Point", "provider": "MOH", "status": "Functional"}, "geometry": {"type": "Point", "coordinates": [34.2618, 31.3123]}}, {"type": "Feature", "properties": {"name": "Al-Zawaydeh PHC", "governorate": "Dier Elbalah", "type": "PHC", "provider": "MOH", "status": "Functional"}, "geometry": {"type": "Point", "coordinates": [34.3685306, 31.4292254]}}, {"type": "Feature", "properties": {"name": "S Nusirat PHC", "governorate": "Dier Elbalah", "type": "PHC", "provider": "MOH", "status": "Functional"}, "geometry": {"type": "Point", "coordinates": [34.389184, 31.448648]}}, {"type": "Feature", "properties": {"name": "Deir Al-Balah PHC", "governorate": "Dier Elbalah", "type": "PHC", "provider": "MOH", "status": "Functional"}, "geometry": {"type": "Point", "coordinates": [34.3485571441, 31.4164425635]}}, {"type": "Feature", "properties": {"name": "Burej PHC", "governorate": "Dier Elbalah", "type": "PHC", "provider": "MOH", "status": "Functional"}, "geometry": {"type": "Point", "coordinates": [34.4003753, 31.4393312]}}, {"type": "Feature", "properties": {"name": "Deir El-Balah Health Center", "governorate": "Dier Elbalah", "type": "PHC", "provider": "UNRWA", "status": "Functional"}, "geometry": {"type": "Point", "coordinates": [34.33875401500006, 31.42408590900004]}}, {"type": "Feature", "properties": {"name": "Nuseirat Health Center", "governorate": "Dier Elbalah", "type": "PHC", "provider": "UNRWA", "status": "Functional"}, "geometry": {"type": "Point", "coordinates": [34.38955372200007, 31.448437591000072]}}, {"type": "Feature", "properties": {"name": "West Nuseirat Health Center", "governorate": "Dier Elbalah", "type": "PHC", "provider": "UNRWA", "status": "Functional"}, "geometry": {"type": "Point", "coordinates": [34.3896927660001, 31.4602346560001]}}, {"type": "Feature", "properties": {"name": "Maghazi Elem. Co-ed \"A\" & \"B\"", "governorate": "Dier Elbalah", "type": "Meical Point", "provider": "UNRWA", "status": "Functional"}, "geometry": {"type": "Point", "coordinates": [34.38518029000005, 31.42125550000003]}}, {"type": "Feature", "properties": {"name": "Deir Al, Balah PHC", "governorate": "Dier Elbalah", "type": "PHC", "provider": "PRCS", "status": "Functional"}, "geometry": {"type": "Point", "coordinates": [34.34356, 31.42264]}}, {"type": "Feature", "properties": {"name": "IMC PHC", "governorate": "Dier Elbalah", "type": "PHC", "provider": "IMC", "status": "Functional"}, "geometry": {"type": "Point", "coordinates": [34.346477, 31.432739]}}, {"type": "Feature", "properties": {"name": "Al Aqsa B. Clinic", "governorate": "KhanYounis", "type": "Medical Point", "provider": "MOH", "status": "Functional"}, "geometry": {"type": "Point", "coordinates": [34.26904, 31.35186]}}, {"type": "Feature", "properties": {"name": "Asda medical Point", "governorate": "KhanYounis", "type": "Medical Point", "provider": "MOH", "status": "Functional"}, "geometry": {"type": "Point", "coordinates": [34.2988852, 31.3750195]}}, {"type": "Feature", "properties": {"name": "Hamad Health Center", "governorate": "KhanYounis", "type": "PHC", "provider": "UNRWA", "status": "Functional"}, "geometry": {"type": "Point", "coordinates": [34.318855, 31.375829]}}, {"type": "Feature", "properties": {"name": "Zorob Health Centre", "governorate": "KhanYounis", "type": "PHC", "provider": "UNRWA", "status": "Functional"}, "geometry": {"type": "Point", "coordinates": [34.256225, 31.352339]}}, {"type": "Feature", "properties": {"name": "Japanese Health Center", "governorate": "KhanYounis", "type": "PHC", "provider": "UNRWA", "status": "Functional"}, "geometry": {"type": "Point", "coordinates": [34.29481906600006, 31.36203880900007]}}, {"type": "Feature", "properties": {"name": "Mawasi Medical Point Num 2", "governorate": "KhanYounis", "type": "Medical Point", "provider": "UNRWA", "status": "Functional"}, "geometry": {"type": "Point", "coordinates": [34.270081, 31.36128]}}, {"type": "Feature", "properties": {"name": "Huneyn Medical point", "governorate": "KhanYounis", "type": "Medical Point", "provider": "UNRWA", "status": "Functional"}, "geometry": {"type": "Point", "coordinates": [34.302078, 31.392643]}}, {"type": "Feature", "properties": {"name": "Maweya Medical Point", "governorate": "KhanYounis", "type": "Medical Point", "provider": "UNRWA", "status": "Functional"}, "geometry": {"type": "Point", "coordinates": [34.242386, 31.338381]}}, {"type": "Feature", "properties": {"name": "Al Mawasi PHC", "governorate": "KhanYounis", "type": "PHC", "provider": "PRCS", "status": "Functional"}, "geometry": {"type": "Point", "coordinates": [34.26724, 31.36063]}}, {"type": "Feature", "properties": {"name": "Al Qarara Mawasi", "governorate": "KhanYounis", "type": "Medical Point", "provider": "PRCS", "status": "Functional"}, "geometry": {"type": "Point", "coordinates": [34.28578, 31.380388]}}, {"type": "Feature", "properties": {"name": "Alamal Medical Point", "governorate": "KhanYounis", "type": "Medical Point", "provider": "PRCS", "status": "Functional"}, "geometry": {"type": "Point", "coordinates": [34.29869, 31.35124]}}, {"type": "Feature", "properties": {"name": "MSF Spain", "governorate": "Rafah", "type": "Medical Point", "provider": "MSF", "status": "Functional"}, "geometry": {"type": "Point", "coordinates": [34.247998, 31.343477]}}]};
 DATA.features.forEach(f => {
   if(f.properties && f.properties.name === 'Blood Bank Medical Point'){
