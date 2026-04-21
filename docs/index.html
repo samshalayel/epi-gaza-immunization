@@ -38,7 +38,7 @@
     </div>
     <div class="col-auto">
       <label class="form-label fw-bold mb-1" id="lbl-year"></label>
-      <select id="yearSel" class="form-select form-select-sm" onchange="renderList()">
+      <select id="yearSel" class="form-select form-select-sm" onchange="renderList();loadDataStatus(this.value)">
         <script>for(let y=2020;y<=2032;y++) document.write(`<option value="${y}"${y===2025?' selected':''}>${y}</option>`);</script>
       </select>
     </div>
@@ -189,10 +189,30 @@ async function loadFacilities() {
     govs.forEach(g => sel.innerHTML += `<option value="${g}">${g}</option>`);
     applyTranslations();
     renderList();
+    // Load data-status badges in background (non-blocking)
+    loadDataStatus(document.getElementById('yearSel').value);
   } catch(e) {
     document.getElementById('listContainer').innerHTML =
       `<div class="alert alert-danger"><i class="bi bi-exclamation-triangle"></i> ${e.message}</div>`;
   }
+}
+
+async function loadDataStatus(year) {
+  // Fetch all data for this year in parallel (max 6 at a time)
+  dataStatus = {};
+  const BATCH = 6;
+  for (let i = 0; i < facilities.length; i += BATCH) {
+    const batch = facilities.slice(i, i + BATCH);
+    await Promise.all(batch.map(async fac => {
+      try {
+        const d = await api.getData(fac.id, year);
+        const monthly = d.monthly_data || {};
+        const hasAny = Object.values(monthly).some(v => v > 0);
+        dataStatus[`${fac.id}_${year}`] = hasAny;
+      } catch(e) { /* no data */ }
+    }));
+  }
+  renderList(); // re-render with badges
 }
 
 function renderList() {
@@ -241,12 +261,15 @@ function renderList() {
         <td>${f.provider || '—'}</td>
         <td>
           <span class="badge bg-success">${t('functional')}</span>
+          ${dataStatus[`${f.id}_${year}`]
+            ? `<span class="badge bg-primary ms-1"><i class="bi bi-check2-circle"></i> ${t('hasData')}</span>`
+            : ''}
         </td>
         <td>
           <a href="facility.html?id=${f.id}&year=${year}" class="btn btn-primary btn-xs">
             <i class="bi bi-pencil-square"></i> ${t('enterData')}
           </a>
-          <button onclick="exportFacility(${f.id},'${year}')" class="btn btn-success btn-xs">
+          <button onclick="exportFacility(${f.id},'${year}',this)" class="btn btn-success btn-xs">
             <i class="bi bi-file-earmark-excel"></i> Excel
           </button>
           <button onclick="deleteFacility(${f.id})" class="btn btn-danger btn-xs">
@@ -328,12 +351,12 @@ async function importExcel(event) {
 }
 
 function exportAll() {
-  const year = document.getElementById('yearSel').value;
-  const btn  = document.querySelector('button[onclick="exportAll()"]');
+  const year  = document.getElementById('yearSel').value;
+  const btn   = document.querySelector('button[onclick="exportAll()"]');
   const total = facilities.length;
   if (!total) return showToast('No facilities loaded', 'warning');
 
-  // Disable button + show progress
+  const orig = btn ? btn.innerHTML : '';
   if (btn) { btn.disabled = true; btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> 0/${total}`; }
   showToast(`⏳ Exporting ${total} facilities…`, 'info');
 
@@ -342,28 +365,27 @@ function exportAll() {
       if (btn) btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> ${done}/${total}`;
     },
     onDone: (done, errors) => {
-      if (btn) {
-        btn.disabled = false;
-        btn.innerHTML = `<i class="bi bi-file-earmark-excel"></i> <span id="nav-export">${t('exportAll')}</span>`;
-      }
-      const msg = errors > 0
-        ? `✓ Exported ${done} facilities (${errors} had no data)`
-        : `✓ Exported ${done} facilities`;
-      showToast(msg);
+      if (btn) { btn.disabled = false; btn.innerHTML = orig; }
+      showToast(errors > 0
+        ? `✓ Exported ${done} (${errors} had no data)`
+        : `✓ Exported ${done} facilities`);
     },
   });
 }
 
-async function exportFacility(id, year) {
+async function exportFacility(id, year, btn) {
   const fac = facilities.find(f => f.id === id);
   if (!fac) return;
+  const orig = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>'; }
   try {
     const d = await api.getData(id, year);
-    // Flatten monthly_data into top-level keys for export
     const flat = { ...(d.monthly_data || {}), catchment_pop: d.catchment_pop, si_percent: d.si_percent };
     exportSingleFacility(fac, year, flat);
   } catch(e) {
     exportSingleFacility(fac, year, {});
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = orig; }
   }
 }
 

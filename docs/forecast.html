@@ -853,9 +853,9 @@ function exportExcel() {
     const sohEl = document.getElementById(`soh_${i}`);
     const soh   = sohEl && sohEl.value !== '' ? parseInt(sohEl.value) : '';
     const req   = soh !== '' ? Math.max(0, vials - soh) : vials;
-    const s05   = v.syr === 'bcg' ? Math.ceil(doses * 1.1) : 0;
-    const s5    = v.syr === 'inj' ? Math.ceil(doses * 1.1) : 0;
-    const s2    = v.dil ? Math.ceil(vials * 1.1) : 0;
+    const s05   = v.syr === 'bcg' ? Math.ceil(pop * 1.05 * 1.25) : 0;
+    const s5    = v.syr === 'inj' ? Math.ceil(pop * 1.05 * 1.25) : 0;
+    const s2    = v.dil          ? Math.ceil(vials * 1.05 * 1.25) : 0;
     const sb    = Math.ceil((s05+s5+s2)/SAFETY_BOX_PER*10)/10;
     rows.push([v.en, pop, v.dc, doses, vials, soh||0, Math.ceil(req), v.price, s05||'–', s5||'–', s2||'–', sb||'–']);
   });
