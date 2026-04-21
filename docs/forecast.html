@@ -449,18 +449,22 @@ function loadGlobalSettings() {
 }
 
 // ─── Vaccine definitions (defaults — overridden by admin panel) ───────────
+// waste = open_vial_wastage × buffer_factor (1.05 or 1.11) × 1.25 (uncertainty)
+// BCG:  2.0  × 1.25 = 2.50   (high OVW for single-dose reconstituted vial)
+// 1.11× group (multi-dose without reconstitution, higher OVW): HepB, bOPV, Penta
+// 1.05× group (multi-dose, lower OVW): IPV, Rota, PCV, MMR, DTP-boost, DT, Td
 const VACCINES_DEFAULT = [
-  {en:'BCG, vial of 20 doses',                            ar:'BCG – فيال 20 جرعة',              dc:1, vial:20, waste:2.50,  price:2.884, syr:'bcg',  dil:true},
-  {en:'HepB vaccine, pediatric, vial of 10 doses',        ar:'التهاب الكبد B – فيال 10 جرعات', dc:1, vial:10, waste:1.3875,price:2.42,  syr:'inj',  dil:false},
-  {en:'Inactivated Polio (IPV), vial of 5 doses',         ar:'شلل الأطفال المحقون (IPV) – 5',   dc:2, vial:5,  waste:1.3875,price:6.25,  syr:'inj',  dil:false},
-  {en:'bOPV (bivalent type 1+3), vial of 10 doses',       ar:'شلل الأطفال الفموي (bOPV) – 10',  dc:5, vial:10, waste:1.3875,price:1.60,  syr:'oral', dil:false},
-  {en:'DTP-HepB-Hib (Pentavalent), vial of 10 doses',     ar:'الخماسي DTP-HepB-Hib – 10 جرعات', dc:3, vial:10, waste:1.3875,price:8.55,  syr:'inj',  dil:false},
-  {en:'Rotavirus (Rotavac 2.5ml), 5 dose vial',           ar:'روتا فيروس Rotavac 2.5ml – 5',    dc:3, vial:5,  waste:1.3875,price:10.00, syr:'oral', dil:false},
-  {en:'Pneumococcal PCV10, 5 dose vial',                  ar:'المكورات الرئوية PCV10 – 5 جرعات', dc:3, vial:5,  waste:1.3875,price:10.00, syr:'inj',  dil:false},
-  {en:'MMR, vial of 1 dose',                              ar:'الحصبة والحصبة الألمانية MMR – 1', dc:2, vial:1,  waste:1.3125,price:4.48,  syr:'inj',  dil:true},
-  {en:'DTP vaccine (18 months), vial of 10 doses',        ar:'ثلاثي DTP منشط (18 شهر) – 10',    dc:1, vial:10, waste:1.3875,price:2.49,  syr:'inj',  dil:false},
-  {en:'DT vaccine (6 years), vial of 10 doses',           ar:'ثنائي DT (6 سنوات) – 10 جرعات',   dc:1, vial:10, waste:1.3875,price:2.18,  syr:'inj',  dil:false},
-  {en:'Td vaccine (15 years), vial of 10 doses',          ar:'Td (15 سنة) – 10 جرعات',           dc:1, vial:10, waste:1.3875,price:1.81,  syr:'inj',  dil:false},
+  {en:'BCG, vial of 20 doses',                             ar:'BCG – فيال 20 جرعة',              dc:1, vial:20, waste:2.500,  price:2.884, syr:'bcg', dil:true},
+  {en:'HepB vaccine, pediatric, vial of 10 doses',         ar:'التهاب الكبد B – فيال 10 جرعات',  dc:1, vial:10, waste:1.3875, price:2.42,  syr:'inj', dil:false},
+  {en:'Inactivated Polio (IPV), vial of 5 doses',          ar:'شلل الأطفال المحقون (IPV) – 5',    dc:2, vial:5,  waste:1.3125, price:6.25,  syr:'inj', dil:false},
+  {en:'bOPV (bivalent type 1+3), vial of 10 doses',        ar:'شلل الأطفال الفموي (bOPV) – 10',   dc:5, vial:10, waste:1.3875, price:1.60,  syr:'oral',dil:false},
+  {en:'DTP-HepB-Hib (Pentavalent), vial of 10 doses',      ar:'الخماسي DTP-HepB-Hib – 10 جرعات',  dc:3, vial:10, waste:1.3875, price:8.55,  syr:'inj', dil:false},
+  {en:'Rotavirus vaccine (Rotavac 2.5ml), vial of 10 doses',ar:'روتا فيروس Rotavac 2.5ml – 10',    dc:3, vial:10, waste:1.3125, price:10.00, syr:'oral',dil:false},
+  {en:'Pneumococcal PCV10, vial of 10 doses',               ar:'المكورات الرئوية PCV10 – 10 جرعات', dc:3, vial:10, waste:1.3125, price:10.00, syr:'inj', dil:false},
+  {en:'MMR, vial of 1 dose',                               ar:'الحصبة والحصبة الألمانية MMR – 1',  dc:2, vial:1,  waste:1.3125, price:4.48,  syr:'inj', dil:true},
+  {en:'DTP vaccine, adsorbed (18 months), vial of 10 doses',ar:'ثلاثي DTP منشط (18 شهر) – 10',     dc:1, vial:10, waste:1.3125, price:2.49,  syr:'inj', dil:false},
+  {en:'DT vaccine (6 years), adsorbed, vial of 10 doses',  ar:'ثنائي DT (6 سنوات) – 10 جرعات',   dc:1, vial:10, waste:1.3125, price:2.18,  syr:'inj', dil:false},
+  {en:'Td vaccine (15 years), vial of 10 doses',           ar:'Td (15 سنة) – 10 جرعات',            dc:1, vial:10, waste:1.3125, price:1.81,  syr:'inj', dil:false},
 ];
 
 // Merge with admin panel settings if saved
@@ -523,11 +527,11 @@ function recalcRow(i) {
   const soh   = sohEl && sohEl.value !== '' ? parseInt(sohEl.value) : null;
   const req   = soh !== null ? Math.max(0, vials - soh) : vials;
 
-  // syringe calc: doses that need injection
-  const inj_doses = v.syr === 'inj' ? doses : (v.syr === 'bcg' ? doses : 0);
-  const s05 = v.syr === 'bcg' ? Math.ceil(doses * 1.1) : 0;
-  const s5  = v.syr === 'inj' ? Math.ceil(doses * 1.1) : 0;
-  const s2  = v.dil ? Math.ceil(vials * 1.1) : 0;
+  // Syringe calc — matches Excel: Pop×1.05×1.25 for needles, Vials×1.05×1.25 for diluent
+  // (one syringe per child per injection session, not dose-adjusted)
+  const s05 = v.syr === 'bcg' ? Math.ceil(pop * 1.05 * 1.25) : 0;   // 0.05ml BCG syringes
+  const s5  = v.syr === 'inj' ? Math.ceil(pop * 1.05 * 1.25) : 0;   // 0.5ml injection syringes
+  const s2  = v.dil          ? Math.ceil(vials * 1.05 * 1.25) : 0;  // 2ml reconstitution syringes
   const sb  = Math.ceil((s05 + s5 + s2) / SAFETY_BOX_PER * 10) / 10;
 
   document.getElementById(`doses_${i}`).textContent = doses.toLocaleString();
