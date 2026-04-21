@@ -167,6 +167,20 @@ body{font-family:Arial,sans-serif;direction:ltr}
 .poly-popup-actions button{flex:1;padding:6px 8px;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer}
 .poly-popup-actions .poly-delete{background:#C62828;color:#fff}
 .poly-popup-actions .poly-close{background:#ECEFF1;color:#455A64}
+/* Edit PIN modal */
+#edit-pin-modal{position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;animation:fadeOverlay .18s;}
+#edit-pin-modal .epm-card{background:#fff;border-radius:16px;padding:24px 26px;min-width:300px;max-width:360px;width:90vw;box-shadow:0 10px 44px rgba(0,0,0,.4);border-top:4px solid #1F4E79;text-align:center;}
+#edit-pin-modal .epm-title{color:#1F4E79;font-size:15px;font-weight:800;margin-bottom:6px;}
+#edit-pin-modal .epm-sub{color:#666;font-size:12px;margin-bottom:16px;}
+#edit-pin-modal .epm-boxes{display:flex;gap:8px;justify-content:center;margin:10px 0 6px;}
+#edit-pin-modal .epin-box{width:40px;height:48px;text-align:center;font-size:20px;font-weight:800;border:1.8px solid #bbb;border-radius:8px;outline:none;transition:border .15s,background .15s;background:#fafafa;color:#1F4E79;}
+#edit-pin-modal .epin-box:focus{border-color:#1F4E79;background:#fff;}
+#edit-pin-modal .epin-box.filled{border-color:#2E7D32;background:#E8F5E9;}
+#edit-pin-modal #epin-error{color:#C62828;font-size:12px;font-weight:700;min-height:16px;margin-top:6px;}
+#edit-pin-modal .epm-cancel{margin-top:14px;background:#eee;color:#555;border:none;border-radius:8px;padding:8px 18px;font-size:12px;font-weight:700;cursor:pointer;}
+#edit-pin-modal .epm-cancel:hover{background:#ddd;}
+@keyframes epinShake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
+#edit-pin-modal .shake{animation:epinShake .35s;}
 .poly-popup-actions .poly-edit{background:#1565C0;color:#fff}
 
 /* ── Polygon Edit Panel ── */
@@ -3532,9 +3546,9 @@ function _clearEditLayers(){
 }
 
 // ── View Only Mode ────────────────────────────────────────────────────────
-const VIEW_ONLY_KEY = 'gaza_map_view_only';
+const EDIT_PIN       = '841977';
+const EDIT_UNLOCK_KEY = 'gaza_map_edit_unlocked'; // sessionStorage
 
-// IDs of elements to HIDE in view-only mode
 const EDIT_ELEMENTS = [
   'section-polygon-draw',
   'section-add-point',
@@ -3543,42 +3557,96 @@ const EDIT_ELEMENTS = [
   'nbhd-edit-tools',
 ];
 
-let viewOnlyMode = localStorage.getItem(VIEW_ONLY_KEY) === '1';
+// Default: view only ON (unless unlocked this session)
+let viewOnlyMode = sessionStorage.getItem(EDIT_UNLOCK_KEY) !== '1';
 
 function applyViewOnly(enable) {
   EDIT_ELEMENTS.forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = enable ? 'none' : '';
   });
-
   const btn   = document.getElementById('viewonly-btn');
   const icon  = document.getElementById('viewonly-icon');
   const label = document.getElementById('viewonly-label');
   if (enable) {
     btn.style.background = '#1B5E20';
-    btn.style.color      = '#fff';
     icon.textContent     = '👁';
-    label.textContent    = 'View Only: ON';
+    label.textContent    = 'View Only — click to edit';
     // cancel any active edit modes
-    if (polygonDrawMode)   togglePolygonDrawMode();
-    if (countEditMode)     togglePopulationEditMode && togglePopulationEditMode();
-    if (typeof nbhdEditMode !== 'undefined' && nbhdEditMode) toggleNbhdEditMode();
+    if (typeof polygonDrawMode !== 'undefined' && polygonDrawMode) togglePolygonDrawMode();
+    if (typeof nbhdEditMode    !== 'undefined' && nbhdEditMode)    toggleNbhdEditMode();
   } else {
-    btn.style.background = 'rgba(255,255,255,.12)';
-    btn.style.color      = '#fff';
-    icon.textContent     = '🔒';
-    label.textContent    = 'View Only Mode';
+    btn.style.background = '#B71C1C';
+    icon.textContent     = '✏️';
+    label.textContent    = 'Edit Mode ON — click to lock';
   }
 }
 
 function toggleViewOnly() {
-  viewOnlyMode = !viewOnlyMode;
-  localStorage.setItem(VIEW_ONLY_KEY, viewOnlyMode ? '1' : '0');
-  applyViewOnly(viewOnlyMode);
+  if (viewOnlyMode) {
+    // currently locked → show PIN modal to unlock
+    openEditPinModal();
+  } else {
+    // currently unlocked → lock immediately, no PIN needed
+    viewOnlyMode = true;
+    sessionStorage.removeItem(EDIT_UNLOCK_KEY);
+    applyViewOnly(true);
+  }
 }
 
-// apply on load (after DOM + map ready)
+// ── Edit PIN modal ────────────────────────────────────────────────────────
+function openEditPinModal() {
+  document.querySelectorAll('.epin-box').forEach(b => { b.value = ''; b.classList.remove('filled'); });
+  document.getElementById('epin-error').textContent = '\u00a0';
+  document.getElementById('edit-pin-modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('epin0').focus(), 80);
+}
+
+function closeEditPinModal() {
+  document.getElementById('edit-pin-modal').style.display = 'none';
+}
+
+function checkEditPin() {
+  const entered = Array.from(document.querySelectorAll('.epin-box')).map(b => b.value).join('');
+  if (entered === EDIT_PIN) {
+    sessionStorage.setItem(EDIT_UNLOCK_KEY, '1');
+    viewOnlyMode = false;
+    closeEditPinModal();
+    applyViewOnly(false);
+  } else {
+    const err = document.getElementById('epin-error');
+    err.textContent = '✕ Wrong code / كود خاطئ';
+    err.classList.remove('shake'); void err.offsetWidth; err.classList.add('shake');
+    document.querySelectorAll('.epin-box').forEach(b => { b.value = ''; b.classList.remove('filled'); });
+    document.getElementById('epin0').focus();
+    setTimeout(() => { err.textContent = '\u00a0'; }, 2500);
+  }
+}
+
+// apply on load
 document.addEventListener('DOMContentLoaded', () => {
+  // init PIN box listeners
+  const boxes = Array.from(document.querySelectorAll('.epin-box'));
+  boxes.forEach((box, i) => {
+    box.addEventListener('input', function() {
+      this.value = this.value.replace(/\D/g,'').slice(-1);
+      if (this.value) { this.classList.add('filled'); if (i < 5) boxes[i+1].focus(); else checkEditPin(); }
+      else this.classList.remove('filled');
+    });
+    box.addEventListener('keydown', function(e) {
+      if (e.key === 'Backspace' && !this.value && i > 0) {
+        boxes[i-1].value = ''; boxes[i-1].classList.remove('filled'); boxes[i-1].focus();
+      }
+      if (e.key === 'Escape') closeEditPinModal();
+    });
+    box.addEventListener('paste', function(e) {
+      e.preventDefault();
+      const p = (e.clipboardData||window.clipboardData).getData('text').replace(/\D/g,'').slice(0,6);
+      p.split('').forEach((ch, j) => { if (boxes[j]) { boxes[j].value = ch; boxes[j].classList.add('filled'); } });
+      boxes[Math.min(p.length, 5)].focus();
+      if (p.length === 6) checkEditPin();
+    });
+  });
   setTimeout(() => applyViewOnly(viewOnlyMode), 100);
 });
 </script>
@@ -3628,6 +3696,24 @@ document.addEventListener('DOMContentLoaded', () => {
       <button class="ap-btn ap-save" onclick="saveNewPoint()">💾 Save Point</button>
       <button class="ap-btn ap-cancel" onclick="cancelNewPoint()">Cancel</button>
     </div>
+  </div>
+</div>
+
+<!-- Edit PIN Modal -->
+<div id="edit-pin-modal">
+  <div class="epm-card">
+    <div class="epm-title">🔒 Enter Edit PIN</div>
+    <div class="epm-sub">أدخل الرمز السري لتفعيل وضع التعديل</div>
+    <div class="epm-boxes">
+      <input class="epin-box" id="epin0" type="password" inputmode="numeric" maxlength="1" autocomplete="off">
+      <input class="epin-box" id="epin1" type="password" inputmode="numeric" maxlength="1" autocomplete="off">
+      <input class="epin-box" id="epin2" type="password" inputmode="numeric" maxlength="1" autocomplete="off">
+      <input class="epin-box" id="epin3" type="password" inputmode="numeric" maxlength="1" autocomplete="off">
+      <input class="epin-box" id="epin4" type="password" inputmode="numeric" maxlength="1" autocomplete="off">
+      <input class="epin-box" id="epin5" type="password" inputmode="numeric" maxlength="1" autocomplete="off">
+    </div>
+    <div id="epin-error">&nbsp;</div>
+    <button class="epm-cancel" onclick="closeEditPinModal()">Cancel</button>
   </div>
 </div>
 </body>
