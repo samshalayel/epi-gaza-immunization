@@ -217,6 +217,15 @@ body{font-family:Arial,sans-serif;direction:ltr}
 <div id="sidebar">
   <h1>Vaccination Service Points<small>Gaza Strip – February 2026</small></h1>
 
+  <!-- ── View Only Toggle ── -->
+  <div style="padding:8px 12px;border-bottom:1px solid rgba(255,255,255,.15)">
+    <button id="viewonly-btn" onclick="toggleViewOnly()"
+      style="width:100%;padding:8px 12px;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:.2s;background:rgba(255,255,255,.12);color:#fff;">
+      <span id="viewonly-icon">🔒</span>
+      <span id="viewonly-label">View Only Mode</span>
+    </button>
+  </div>
+
   <!-- ── Governorate filter (starts collapsed) ── -->
   <div class="section sec-closed">
     <h2 class="sec-hdr" onclick="toggleSection(this)">Filter by Governorate <span id="badge" style="background:rgba(255,255,255,.15);border-radius:10px;padding:1px 7px;font-size:11px;">All</span><span class="sec-arrow">▾</span></h2>
@@ -340,7 +349,7 @@ body{font-family:Arial,sans-serif;direction:ltr}
   </div>
 
   <!-- ── Polygon Drawing ── -->
-  <div class="section">
+  <div class="section" id="section-polygon-draw">
     <h2 class="sec-hdr" onclick="toggleSection(this)">Polygon Drawing<span class="sec-arrow">▾</span></h2>
     <div class="sec-body">
       <button id="db-polygon-btn" class="fbtn active" onclick="toggleDbPolygonLayer()">
@@ -416,7 +425,7 @@ body{font-family:Arial,sans-serif;direction:ltr}
   </div>
 
   <!-- ── Add New Point ── -->
-  <div class="section sec-closed">
+  <div class="section sec-closed" id="section-add-point">
     <h2 class="sec-hdr" onclick="toggleSection(this)">Add New Point<span class="sec-arrow">▾</span></h2>
     <div class="sec-body">
       <button id="addmode-btn" onclick="toggleAddMode()"
@@ -3521,6 +3530,57 @@ function _clearEditLayers(){
   editState = null;
   document.getElementById('poly-edit-panel').style.display = 'none';
 }
+
+// ── View Only Mode ────────────────────────────────────────────────────────
+const VIEW_ONLY_KEY = 'gaza_map_view_only';
+
+// IDs of elements to HIDE in view-only mode
+const EDIT_ELEMENTS = [
+  'section-polygon-draw',
+  'section-add-point',
+  'population-edit-btn',
+  'nbhd-edit-btn',
+  'nbhd-edit-tools',
+];
+
+let viewOnlyMode = localStorage.getItem(VIEW_ONLY_KEY) === '1';
+
+function applyViewOnly(enable) {
+  EDIT_ELEMENTS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = enable ? 'none' : '';
+  });
+
+  const btn   = document.getElementById('viewonly-btn');
+  const icon  = document.getElementById('viewonly-icon');
+  const label = document.getElementById('viewonly-label');
+  if (enable) {
+    btn.style.background = '#1B5E20';
+    btn.style.color      = '#fff';
+    icon.textContent     = '👁';
+    label.textContent    = 'View Only: ON';
+    // cancel any active edit modes
+    if (polygonDrawMode)   togglePolygonDrawMode();
+    if (countEditMode)     togglePopulationEditMode && togglePopulationEditMode();
+    if (typeof nbhdEditMode !== 'undefined' && nbhdEditMode) toggleNbhdEditMode();
+  } else {
+    btn.style.background = 'rgba(255,255,255,.12)';
+    btn.style.color      = '#fff';
+    icon.textContent     = '🔒';
+    label.textContent    = 'View Only Mode';
+  }
+}
+
+function toggleViewOnly() {
+  viewOnlyMode = !viewOnlyMode;
+  localStorage.setItem(VIEW_ONLY_KEY, viewOnlyMode ? '1' : '0');
+  applyViewOnly(viewOnlyMode);
+}
+
+// apply on load (after DOM + map ready)
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => applyViewOnly(viewOnlyMode), 100);
+});
 </script>
 
 <!-- Add New Point Modal -->
