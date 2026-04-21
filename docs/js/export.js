@@ -272,17 +272,24 @@ function exportSingleFacility(fac, year, d = {}) {
   XLSX.writeFile(wb, `EPI_${fac.name.replace(/[\/\\:*?"<>|]/g,'-')}_${year}.xlsx`, { cellStyles:true });
 }
 
-async function exportAllFacilities(facilities, year) {
+async function exportAllFacilities(facilities, year, { onProgress, onDone, onError } = {}) {
+  const total = facilities.length;
   const wb = XLSX.utils.book_new();
+  let done = 0, errors = 0;
+
   for (const fac of facilities) {
     let d = {};
     try {
       const r = await api.getData(fac.id, year);
       d = { ...(r.monthly_data || {}), catchment_pop: r.catchment_pop || 0, si_percent: r.si_percent != null ? r.si_percent : 3.2 };
-    } catch(e) { /* empty data */ }
+    } catch(e) { errors++; }
     XLSX.utils.book_append_sheet(wb, buildSheet(fac, year, d), truncSheet(fac.name));
+    done++;
+    if (onProgress) onProgress(done, total);
   }
-  XLSX.writeFile(wb, `EPI_All_Facilities_${year}.xlsx`, { cellStyles:true });
+
+  XLSX.writeFile(wb, `EPI_All_Facilities_${year}.xlsx`, { cellStyles: true });
+  if (onDone) onDone(done, errors);
 }
 
 function truncSheet(name) {

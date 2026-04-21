@@ -328,7 +328,30 @@ async function importExcel(event) {
 }
 
 function exportAll() {
-  exportAllFacilities(facilities, document.getElementById('yearSel').value);
+  const year = document.getElementById('yearSel').value;
+  const btn  = document.querySelector('button[onclick="exportAll()"]');
+  const total = facilities.length;
+  if (!total) return showToast('No facilities loaded', 'warning');
+
+  // Disable button + show progress
+  if (btn) { btn.disabled = true; btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> 0/${total}`; }
+  showToast(`⏳ Exporting ${total} facilities…`, 'info');
+
+  exportAllFacilities(facilities, year, {
+    onProgress: (done, total) => {
+      if (btn) btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> ${done}/${total}`;
+    },
+    onDone: (done, errors) => {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="bi bi-file-earmark-excel"></i> <span id="nav-export">${t('exportAll')}</span>`;
+      }
+      const msg = errors > 0
+        ? `✓ Exported ${done} facilities (${errors} had no data)`
+        : `✓ Exported ${done} facilities`;
+      showToast(msg);
+    },
+  });
 }
 
 async function exportFacility(id, year) {
