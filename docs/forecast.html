@@ -60,6 +60,9 @@
       <button class="btn btn-success btn-sm" onclick="exportExcel()">
         <i class="bi bi-file-earmark-excel"></i> Export Excel
       </button>
+      <button class="btn btn-info btn-sm text-white fw-bold" id="exportAllBtn" onclick="exportAllForecastsExcel()">
+        <i class="bi bi-file-earmark-excel-fill"></i> Export All Facilities
+      </button>
       <button class="btn btn-warning btn-sm" onclick="window.print()">
         <i class="bi bi-printer"></i> Print
       </button>
@@ -319,12 +322,15 @@
   </div>
 
   <!-- SAVE BUTTON -->
-  <div class="d-flex gap-3 mb-4 no-print">
+  <div class="d-flex gap-3 mb-4 no-print flex-wrap">
     <button class="btn btn-primary px-4" onclick="saveForm()">
       <i class="bi bi-save2-fill"></i> Save Form / حفظ
     </button>
     <button class="btn btn-success px-4" onclick="exportExcel()">
-      <i class="bi bi-file-earmark-excel"></i> Export Excel
+      <i class="bi bi-file-earmark-excel"></i> Export This Clinic
+    </button>
+    <button class="btn btn-info px-4 text-white fw-bold" onclick="exportAllForecastsExcel()">
+      <i class="bi bi-file-earmark-excel-fill"></i> Export ALL Facilities
     </button>
     <button class="btn btn-outline-secondary px-4" onclick="clearForm()">
       <i class="bi bi-arrow-counterclockwise"></i> Clear / مسح
@@ -878,6 +884,161 @@ function exportExcel() {
   XLSX.utils.book_append_sheet(wb, ws, 'Forecast 2026');
   const clinic = (selectedFacility ? selectedFacility.name : 'Clinic').replace(/[\/\\:*?"<>|]/g,'-');
   XLSX.writeFile(wb, `Vaccine_Forecast_2026_${clinic}.xlsx`);
+}
+
+// ─── Export ALL facilities ────────────────────────────────────────────────
+async function exportAllForecastsExcel() {
+  const btn = document.getElementById('exportAllBtn');
+  const origLabel = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Exporting…'; }
+
+  try {
+    const year = document.getElementById('clinicPeriod').value || '2026';
+
+    // 1. Fetch all saved forecast records for this year
+    let savedMap = {};
+    try {
+      const records = await api.getAllForecasts(year);
+      if (Array.isArray(records)) {
+        records.forEach(r => { savedMap[r.facility_id] = r; });
+      }
+    } catch(e) { /* proceed with empty data */ }
+
+    // 2. Build styled workbook
+    const wb = XLSX.utils.book_new();
+    const ws = {};
+    const merges = [];
+    let R = 0;  // current row
+
+    // ── Colour palette ──────────────────────────────────────────────────────
+    const C = {
+      bdr: { top:{style:'thin',color:{rgb:'FFB0BEC5'}}, bottom:{style:'thin',color:{rgb:'FFB0BEC5'}},
+             left:{style:'thin',color:{rgb:'FFB0BEC5'}}, right:{style:'thin',color:{rgb:'FFB0BEC5'}} },
+      navyFill : { patternType:'solid', fgColor:{rgb:'FF0D4F6B'} },
+      tealFill : { patternType:'solid', fgColor:{rgb:'FF1FA2C8'} },
+      greenFill: { patternType:'solid', fgColor:{rgb:'FF1B5E20'} },
+      evenFill : { patternType:'solid', fgColor:{rgb:'FFEAF6FB'} },
+      oddFill  : { patternType:'solid', fgColor:{rgb:'FFFFFDE7'} },
+      totFill  : { patternType:'solid', fgColor:{rgb:'FF1FA2C8'} },
+      whtBold  : { name:'Arial', sz:9, bold:true, color:{rgb:'FFFFFFFF'} },
+      blkBold  : { name:'Arial', sz:9, bold:true },
+      blkNorm  : { name:'Arial', sz:9 },
+      ctr      : { horizontal:'center', vertical:'center', wrapText:true },
+      lft      : { horizontal:'left',   vertical:'center', wrapText:true },
+    };
+
+    const cell = (v, fill, font, align) => {
+      const t = typeof v === 'number' ? 'n' : 's';
+      return { v, t, s: { fill: fill||undefined, font: font||C.blkNorm, alignment: align||C.ctr, border: C.bdr } };
+    };
+    const ec = (r, c) => XLSX.utils.encode_cell({r, c});
+
+    // ── Title row ───────────────────────────────────────────────────────────
+    const TOTAL_COLS = 5 + VACCINES.length + 3; // info(5) + vaccines + totals(2) + notes(1)
+    ws[ec(R, 0)] = cell(
+      `Vaccine & Supplies Forecast – Gaza Strip ${year}  |  Generated: ${new Date().toLocaleDateString()}`,
+      C.navyFill, { name:'Arial', sz:13, bold:true, color:{rgb:'FFFFFFFF'} }, C.ctr
+    );
+    merges.push({ s:{r:R,c:0}, e:{r:R,c:TOTAL_COLS-1} });
+    for (let c = 1; c < TOTAL_COLS; c++) ws[ec(R,c)] = cell('', C.navyFill, C.whtBold, C.ctr);
+    R++;
+
+    // ── Column headers ──────────────────────────────────────────────────────
+    // Row R: group headers (merged)
+    const INFO_COLS = ['Facility', 'Governorate', 'Type / Provider', 'Target Pop.', 'Date'];
+    const VAC_START = INFO_COLS.length;
+    const TOT_COL   = VAC_START + VACCINES.length;
+    const REQ_COL   = TOT_COL + 1;
+    const NOTE_COL  = TOT_COL + 2;
+
+    // Group header row
+    ws[ec(R, 0)] = cell('Clinic Information', C.navyFill, C.whtBold, C.ctr);
+    merges.push({ s:{r:R,c:0}, e:{r:R,c:VAC_START-1} });
+    for (let c = 1; c < VAC_START; c++) ws[ec(R,c)] = cell('', C.navyFill, C.whtBold, C.ctr);
+
+    ws[ec(R, VAC_START)] = cell('Required Vials per Vaccine  (Forecast − SOH)', C.tealFill, C.whtBold, C.ctr);
+    merges.push({ s:{r:R,c:VAC_START}, e:{r:R,c:TOT_COL-1} });
+    for (let c = VAC_START+1; c < TOT_COL; c++) ws[ec(R,c)] = cell('', C.tealFill, C.whtBold, C.ctr);
+
+    ws[ec(R, TOT_COL)]  = cell('Totals', C.greenFill, C.whtBold, C.ctr);
+    merges.push({ s:{r:R,c:TOT_COL}, e:{r:R,c:REQ_COL} });
+    ws[ec(R, REQ_COL)]  = cell('', C.greenFill, C.whtBold, C.ctr);
+    ws[ec(R, NOTE_COL)] = cell('Notes', C.navyFill, C.whtBold, C.ctr);
+    R++;
+
+    // Sub-headers
+    INFO_COLS.forEach((h, c) => ws[ec(R, c)] = cell(h, C.tealFill, C.whtBold, C.ctr));
+    VACCINES.forEach((v, i) => {
+      // Short name: take first word or acronym
+      const short = v.en.split(',')[0].split('(')[0].trim();
+      ws[ec(R, VAC_START + i)] = cell(short, C.tealFill, { name:'Arial', sz:8, bold:true, color:{rgb:'FFFFFFFF'} }, C.ctr);
+    });
+    ws[ec(R, TOT_COL)]  = cell('Vials\nForecast', C.greenFill, C.whtBold, C.ctr);
+    ws[ec(R, REQ_COL)]  = cell('Vials\nRequired', C.greenFill, C.whtBold, C.ctr);
+    ws[ec(R, NOTE_COL)] = cell('', C.tealFill, C.whtBold, C.ctr);
+    R++;
+
+    // ── Data rows ────────────────────────────────────────────────────────────
+    let totForecast = 0, totRequired = 0;
+
+    facilities.forEach((fac, fi) => {
+      const rec = savedMap[fac.id] || {};
+      const pop = parseInt(rec.target_population) || 0;
+      const soh = rec.soh || {};
+      const fill = fi % 2 === 0 ? C.evenFill : C.oddFill;
+
+      ws[ec(R, 0)] = cell(fac.name,      fill, C.blkBold, C.lft);
+      ws[ec(R, 1)] = cell(fac.governorate||'', fill, C.blkNorm, C.ctr);
+      ws[ec(R, 2)] = cell(`${fac.type||''} / ${fac.provider||''}`.replace(/ \/ $/,''), fill, C.blkNorm, C.ctr);
+      ws[ec(R, 3)] = cell(pop,            fill, C.blkBold, C.ctr);
+      ws[ec(R, 4)] = cell(rec.date||'',   fill, C.blkNorm, C.ctr);
+
+      let rowForecast = 0, rowRequired = 0;
+      VACCINES.forEach((v, i) => {
+        const doses = pop > 0 ? Math.ceil(pop * v.dc * v.waste) : 0;
+        const vials = doses / v.vial;
+        const sohVal = soh[i] !== undefined ? parseFloat(soh[i]) : 0;
+        const req  = Math.max(0, vials - sohVal);
+        rowForecast += vials;
+        rowRequired += req;
+        ws[ec(R, VAC_START + i)] = cell(Math.ceil(req) || '', fill, C.blkNorm, C.ctr);
+      });
+
+      totForecast += rowForecast;
+      totRequired += rowRequired;
+      ws[ec(R, TOT_COL)]  = cell(Math.round(rowForecast) || 0, fill, C.blkBold, C.ctr);
+      ws[ec(R, REQ_COL)]  = cell(Math.round(rowRequired) || 0, fill, C.blkBold, C.ctr);
+      ws[ec(R, NOTE_COL)] = cell(rec.notes || '', fill, C.blkNorm, C.lft);
+      R++;
+    });
+
+    // ── Totals row ───────────────────────────────────────────────────────────
+    ws[ec(R, 0)] = cell('TOTAL  الإجمالي', C.totFill, C.whtBold, C.lft);
+    merges.push({ s:{r:R,c:0}, e:{r:R,c:VAC_START-1} });
+    for (let c = 1; c < VAC_START; c++) ws[ec(R,c)] = cell('', C.totFill, C.whtBold, C.ctr);
+    for (let c = VAC_START; c < TOTAL_COLS; c++) ws[ec(R,c)] = cell('', C.totFill, C.whtBold, C.ctr);
+    ws[ec(R, TOT_COL)] = cell(Math.round(totForecast), C.totFill, C.whtBold, C.ctr);
+    ws[ec(R, REQ_COL)] = cell(Math.round(totRequired), C.totFill, C.whtBold, C.ctr);
+
+    // ── Sheet settings ───────────────────────────────────────────────────────
+    ws['!ref'] = XLSX.utils.encode_range({ s:{r:0,c:0}, e:{r:R,c:TOTAL_COLS-1} });
+    ws['!merges'] = merges;
+    ws['!cols'] = [
+      {wch:28}, {wch:14}, {wch:18}, {wch:11}, {wch:11},
+      ...VACCINES.map(() => ({wch:9})),
+      {wch:12}, {wch:12}, {wch:30}
+    ];
+    ws['!rows'] = [{ hpt:22 }, { hpt:18 }, { hpt:30 }];
+
+    XLSX.utils.book_append_sheet(wb, ws, `Forecast ${year}`);
+    XLSX.writeFile(wb, `Vaccine_Forecast_ALL_${year}.xlsx`, { cellStyles: true });
+    showToast('✓ Exported all ' + facilities.length + ' facilities');
+  } catch(e) {
+    console.error(e);
+    showToast('⚠ Export failed: ' + e.message, 'warning');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = origLabel; }
+  }
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────
