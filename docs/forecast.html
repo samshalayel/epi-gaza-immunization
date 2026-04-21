@@ -891,6 +891,27 @@ function exportExcel() {
 }
 
 // ─── Export ALL facilities ────────────────────────────────────────────────
+// Column groups: Info | SOH per vaccine | Required per vaccine | Totals | Cold Chain equip | Stationery | Notes
+const EQUIP_KEYS = [
+  { key:'sdd_refr',     label:'SDD\nRefrigerator' },
+  { key:'sdd_freeze',   label:'SDD\nDeep Freezer' },
+  { key:'vac_carrier',  label:'Vaccine\nCarrier'  },
+  { key:'cold_box',     label:'Cold\nBox'         },
+  { key:'temp_mon',     label:'Temp.\nMonitor'    },
+  { key:'spare_comp',   label:'Spare\nCompressor' },
+  { key:'spare_thermo', label:'Spare\nThermometer'},
+];
+const STAT_KEYS = [
+  { key:'mch_book',    label:'MCH\nBook'        },
+  { key:'rashmoon',    label:'Rashmoon'         },
+  { key:'daily_sheet', label:'Daily\nSummary'   },
+  { key:'defaulter',   label:'Defaulter\nTracking'},
+  { key:'temp_form',   label:'Temp.\nForm'      },
+  { key:'stock_form',  label:'Stock\nForm'      },
+  { key:'imm_chart',   label:'Imm.\nChart'      },
+  { key:'aefi',        label:'AEFI\nBooklet'    },
+];
+
 async function exportAllForecastsExcel() {
   const btn = document.getElementById('exportAllBtn');
   const origLabel = btn ? btn.innerHTML : '';
@@ -899,144 +920,179 @@ async function exportAllForecastsExcel() {
   try {
     const year = document.getElementById('clinicPeriod').value || '2026';
 
-    // 1. Fetch all saved forecast records for this year
+    // Fetch all saved forecast records
     let savedMap = {};
     try {
       const records = await api.getAllForecasts(year);
-      if (Array.isArray(records)) {
-        records.forEach(r => { savedMap[r.facility_id] = r; });
-      }
-    } catch(e) { /* proceed with empty data */ }
+      if (Array.isArray(records)) records.forEach(r => { savedMap[r.facility_id] = r; });
+    } catch(e) { /* proceed with empty */ }
 
-    // 2. Build styled workbook
-    const wb = XLSX.utils.book_new();
-    const ws = {};
+    const wb   = XLSX.utils.book_new();
+    const ws   = {};
     const merges = [];
-    let R = 0;  // current row
+    let R = 0;
 
-    // ── Colour palette ──────────────────────────────────────────────────────
-    const C = {
-      bdr: { top:{style:'thin',color:{rgb:'FFB0BEC5'}}, bottom:{style:'thin',color:{rgb:'FFB0BEC5'}},
-             left:{style:'thin',color:{rgb:'FFB0BEC5'}}, right:{style:'thin',color:{rgb:'FFB0BEC5'}} },
-      navyFill : { patternType:'solid', fgColor:{rgb:'FF0D4F6B'} },
-      tealFill : { patternType:'solid', fgColor:{rgb:'FF1FA2C8'} },
-      greenFill: { patternType:'solid', fgColor:{rgb:'FF1B5E20'} },
-      evenFill : { patternType:'solid', fgColor:{rgb:'FFEAF6FB'} },
-      oddFill  : { patternType:'solid', fgColor:{rgb:'FFFFFDE7'} },
-      totFill  : { patternType:'solid', fgColor:{rgb:'FF1FA2C8'} },
-      whtBold  : { name:'Arial', sz:9, bold:true, color:{rgb:'FFFFFFFF'} },
-      blkBold  : { name:'Arial', sz:9, bold:true },
-      blkNorm  : { name:'Arial', sz:9 },
-      ctr      : { horizontal:'center', vertical:'center', wrapText:true },
-      lft      : { horizontal:'left',   vertical:'center', wrapText:true },
+    // ── Palette ─────────────────────────────────────────────────────────────
+    const bdr = { top:{style:'thin',color:{rgb:'FFB0BEC5'}}, bottom:{style:'thin',color:{rgb:'FFB0BEC5'}},
+                  left:{style:'thin',color:{rgb:'FFB0BEC5'}}, right:{style:'thin',color:{rgb:'FFB0BEC5'}} };
+    const fills = {
+      navy  : { patternType:'solid', fgColor:{rgb:'FF0D4F6B'} },
+      teal  : { patternType:'solid', fgColor:{rgb:'FF1FA2C8'} },
+      green : { patternType:'solid', fgColor:{rgb:'FF1B5E20'} },
+      purple: { patternType:'solid', fgColor:{rgb:'FF4527A0'} },
+      olive : { patternType:'solid', fgColor:{rgb:'FF33691E'} },
+      even  : { patternType:'solid', fgColor:{rgb:'FFEAF6FB'} },
+      odd   : { patternType:'solid', fgColor:{rgb:'FFFFFDE7'} },
+      tot   : { patternType:'solid', fgColor:{rgb:'FF1FA2C8'} },
     };
-
-    const cell = (v, fill, font, align) => {
-      const t = typeof v === 'number' ? 'n' : 's';
-      return { v, t, s: { fill: fill||undefined, font: font||C.blkNorm, alignment: align||C.ctr, border: C.bdr } };
+    const fonts = {
+      whtBold : { name:'Arial', sz:9,  bold:true, color:{rgb:'FFFFFFFF'} },
+      whtSm   : { name:'Arial', sz:8,  bold:true, color:{rgb:'FFFFFFFF'} },
+      blkBold : { name:'Arial', sz:9,  bold:true },
+      blkNorm : { name:'Arial', sz:9  },
     };
-    const ec = (r, c) => XLSX.utils.encode_cell({r, c});
-
-    // ── Title row ───────────────────────────────────────────────────────────
-    const TOTAL_COLS = 5 + VACCINES.length + 3; // info(5) + vaccines + totals(2) + notes(1)
-    ws[ec(R, 0)] = cell(
-      `Vaccine & Supplies Forecast – Gaza Strip ${year}  |  Generated: ${new Date().toLocaleDateString()}`,
-      C.navyFill, { name:'Arial', sz:13, bold:true, color:{rgb:'FFFFFFFF'} }, C.ctr
-    );
-    merges.push({ s:{r:R,c:0}, e:{r:R,c:TOTAL_COLS-1} });
-    for (let c = 1; c < TOTAL_COLS; c++) ws[ec(R,c)] = cell('', C.navyFill, C.whtBold, C.ctr);
-    R++;
-
-    // ── Column headers ──────────────────────────────────────────────────────
-    // Row R: group headers (merged)
-    const INFO_COLS = ['Facility', 'Governorate', 'Type / Provider', 'Target Pop.', 'Date'];
-    const VAC_START = INFO_COLS.length;
-    const TOT_COL   = VAC_START + VACCINES.length;
-    const REQ_COL   = TOT_COL + 1;
-    const NOTE_COL  = TOT_COL + 2;
-
-    // Group header row
-    ws[ec(R, 0)] = cell('Clinic Information', C.navyFill, C.whtBold, C.ctr);
-    merges.push({ s:{r:R,c:0}, e:{r:R,c:VAC_START-1} });
-    for (let c = 1; c < VAC_START; c++) ws[ec(R,c)] = cell('', C.navyFill, C.whtBold, C.ctr);
-
-    ws[ec(R, VAC_START)] = cell('Required Vials per Vaccine  (Forecast − SOH)', C.tealFill, C.whtBold, C.ctr);
-    merges.push({ s:{r:R,c:VAC_START}, e:{r:R,c:TOT_COL-1} });
-    for (let c = VAC_START+1; c < TOT_COL; c++) ws[ec(R,c)] = cell('', C.tealFill, C.whtBold, C.ctr);
-
-    ws[ec(R, TOT_COL)]  = cell('Totals', C.greenFill, C.whtBold, C.ctr);
-    merges.push({ s:{r:R,c:TOT_COL}, e:{r:R,c:REQ_COL} });
-    ws[ec(R, REQ_COL)]  = cell('', C.greenFill, C.whtBold, C.ctr);
-    ws[ec(R, NOTE_COL)] = cell('Notes', C.navyFill, C.whtBold, C.ctr);
-    R++;
-
-    // Sub-headers
-    INFO_COLS.forEach((h, c) => ws[ec(R, c)] = cell(h, C.tealFill, C.whtBold, C.ctr));
-    VACCINES.forEach((v, i) => {
-      // Short name: take first word or acronym
-      const short = v.en.split(',')[0].split('(')[0].trim();
-      ws[ec(R, VAC_START + i)] = cell(short, C.tealFill, { name:'Arial', sz:8, bold:true, color:{rgb:'FFFFFFFF'} }, C.ctr);
+    const aligns = {
+      ctr: { horizontal:'center', vertical:'center', wrapText:true },
+      lft: { horizontal:'left',   vertical:'center', wrapText:true },
+    };
+    const cell = (v, fill, font, align) => ({
+      v, t: typeof v === 'number' ? 'n' : 's',
+      s: { fill: fill||undefined, font: font||fonts.blkNorm, alignment: align||aligns.ctr, border: bdr }
     });
-    ws[ec(R, TOT_COL)]  = cell('Vials\nForecast', C.greenFill, C.whtBold, C.ctr);
-    ws[ec(R, REQ_COL)]  = cell('Vials\nRequired', C.greenFill, C.whtBold, C.ctr);
-    ws[ec(R, NOTE_COL)] = cell('', C.tealFill, C.whtBold, C.ctr);
+    const ec = (r,c) => XLSX.utils.encode_cell({r,c});
+    const merge = (r,c1,c2) => { merges.push({s:{r,c:c1},e:{r,c:c2}}); for(let c=c1+1;c<=c2;c++) ws[ec(r,c)]=cell('',null,null,aligns.ctr); };
+
+    // ── Column layout ────────────────────────────────────────────────────────
+    const N_VAC = VACCINES.length;  // 11
+    const C_INFO  = 0;  const N_INFO  = 5;   // Facility, Gov, Type/Prov, Pop, Date
+    const C_SOH   = N_INFO;                   // SOH per vaccine (11 cols)
+    const C_REQ   = C_SOH  + N_VAC;          // Required vials per vaccine (11 cols)
+    const C_TFORE = C_REQ  + N_VAC;          // Total forecast
+    const C_TREQ  = C_TFORE + 1;             // Total required
+    const C_EQUIP = C_TREQ  + 1;             // Cold chain equip requests (7)
+    const C_STAT  = C_EQUIP + EQUIP_KEYS.length;  // Stationery (8)
+    const C_NOTE  = C_STAT  + STAT_KEYS.length;   // Notes
+    const LAST_C  = C_NOTE;
+    const TOTAL_COLS = LAST_C + 1;
+
+    // ── Row 0: Title ─────────────────────────────────────────────────────────
+    ws[ec(R,0)] = cell(
+      `Vaccine & Supplies Forecast – Gaza Strip ${year}  |  Generated: ${new Date().toLocaleDateString()}`,
+      fills.navy, { name:'Arial', sz:13, bold:true, color:{rgb:'FFFFFFFF'} }, aligns.ctr
+    );
+    merge(R, 0, LAST_C); R++;
+
+    // ── Row 1: Group headers ─────────────────────────────────────────────────
+    ws[ec(R,C_INFO)]  = cell('Clinic Information',                       fills.navy,   fonts.whtBold, aligns.ctr); merge(R, C_INFO,  C_INFO+N_INFO-1);
+    ws[ec(R,C_SOH)]   = cell('Stock on Hand – Jan '+year+' (Vials)',     fills.teal,   fonts.whtBold, aligns.ctr); merge(R, C_SOH,   C_SOH+N_VAC-1);
+    ws[ec(R,C_REQ)]   = cell('Required Vials (Forecast − SOH)',          fills.green,  fonts.whtBold, aligns.ctr); merge(R, C_REQ,   C_REQ+N_VAC-1);
+    ws[ec(R,C_TFORE)] = cell('Totals',                                   fills.navy,   fonts.whtBold, aligns.ctr); merge(R, C_TFORE, C_TREQ);
+    ws[ec(R,C_EQUIP)] = cell('Cold Chain Equipment Requested',           fills.olive,  fonts.whtBold, aligns.ctr); merge(R, C_EQUIP, C_EQUIP+EQUIP_KEYS.length-1);
+    ws[ec(R,C_STAT)]  = cell('Stationery & IEC Materials',               fills.purple, fonts.whtBold, aligns.ctr); merge(R, C_STAT,  C_STAT+STAT_KEYS.length-1);
+    ws[ec(R,C_NOTE)]  = cell('Notes',                                    fills.navy,   fonts.whtBold, aligns.ctr);
+    R++;
+
+    // ── Row 2: Sub-headers ───────────────────────────────────────────────────
+    ['Facility','Governorate','Type / Provider','Target Pop.','Date'].forEach((h,i) =>
+      ws[ec(R,C_INFO+i)] = cell(h, fills.teal, fonts.whtSm, aligns.ctr));
+
+    VACCINES.forEach((v,i) => {
+      const short = v.en.split(',')[0].split('(')[0].trim();
+      ws[ec(R, C_SOH+i)] = cell(short, fills.teal,  fonts.whtSm, aligns.ctr);
+      ws[ec(R, C_REQ+i)] = cell(short, fills.green, fonts.whtSm, aligns.ctr);
+    });
+    ws[ec(R,C_TFORE)] = cell('Total\nForecast', fills.navy,   fonts.whtSm, aligns.ctr);
+    ws[ec(R,C_TREQ)]  = cell('Total\nRequired', fills.navy,   fonts.whtSm, aligns.ctr);
+    EQUIP_KEYS.forEach((k,i) => ws[ec(R, C_EQUIP+i)] = cell(k.label, fills.olive,  fonts.whtSm, aligns.ctr));
+    STAT_KEYS.forEach((k,i)  => ws[ec(R, C_STAT+i)]  = cell(k.label, fills.purple, fonts.whtSm, aligns.ctr));
+    ws[ec(R,C_NOTE)] = cell('', fills.teal, fonts.whtSm, aligns.ctr);
     R++;
 
     // ── Data rows ────────────────────────────────────────────────────────────
-    let totForecast = 0, totRequired = 0;
+    const totSOH = new Array(N_VAC).fill(0);
+    const totReq = new Array(N_VAC).fill(0);
+    let grandForecast = 0, grandRequired = 0;
 
     facilities.forEach((fac, fi) => {
-      const rec = savedMap[fac.id] || {};
-      const pop = parseInt(rec.target_population) || 0;
-      const soh = rec.soh || {};
-      const fill = fi % 2 === 0 ? C.evenFill : C.oddFill;
+      const rec   = savedMap[fac.id] || {};
+      const pop   = parseInt(rec.target_population) || 0;
+      const soh   = rec.soh   || {};
+      const equip = rec.equipment || {};
+      const fill  = fi % 2 === 0 ? fills.even : fills.odd;
 
-      ws[ec(R, 0)] = cell(fac.name,      fill, C.blkBold, C.lft);
-      ws[ec(R, 1)] = cell(fac.governorate||'', fill, C.blkNorm, C.ctr);
-      ws[ec(R, 2)] = cell(`${fac.type||''} / ${fac.provider||''}`.replace(/ \/ $/,''), fill, C.blkNorm, C.ctr);
-      ws[ec(R, 3)] = cell(pop,            fill, C.blkBold, C.ctr);
-      ws[ec(R, 4)] = cell(rec.date||'',   fill, C.blkNorm, C.ctr);
+      // Info
+      ws[ec(R,C_INFO+0)] = cell(fac.name,                                                              fill, fonts.blkBold, aligns.lft);
+      ws[ec(R,C_INFO+1)] = cell(fac.governorate||'',                                                   fill, fonts.blkNorm, aligns.ctr);
+      ws[ec(R,C_INFO+2)] = cell((fac.type||'') + (fac.provider?' / '+fac.provider:''),                 fill, fonts.blkNorm, aligns.ctr);
+      ws[ec(R,C_INFO+3)] = cell(pop,                                                                   fill, fonts.blkBold, aligns.ctr);
+      ws[ec(R,C_INFO+4)] = cell(rec.date||'',                                                          fill, fonts.blkNorm, aligns.ctr);
 
+      // Per-vaccine SOH + Required
       let rowForecast = 0, rowRequired = 0;
-      VACCINES.forEach((v, i) => {
-        const doses = pop > 0 ? Math.ceil(pop * v.dc * v.waste) : 0;
-        const vials = doses / v.vial;
-        const sohVal = soh[i] !== undefined ? parseFloat(soh[i]) : 0;
-        const req  = Math.max(0, vials - sohVal);
-        rowForecast += vials;
-        rowRequired += req;
-        ws[ec(R, VAC_START + i)] = cell(Math.ceil(req) || '', fill, C.blkNorm, C.ctr);
+      VACCINES.forEach((v,i) => {
+        const doses   = pop > 0 ? Math.ceil(pop * v.dc * v.waste) : 0;
+        const vials   = doses / v.vial;
+        const sohVal  = soh[i] !== undefined && soh[i] !== '' ? parseFloat(soh[i]) : 0;
+        const req     = Math.max(0, vials - sohVal);
+        rowForecast  += vials;
+        rowRequired  += req;
+        totSOH[i]    += sohVal;
+        totReq[i]    += req;
+        ws[ec(R, C_SOH+i)] = cell(sohVal > 0 ? sohVal : '',     fill, fonts.blkNorm, aligns.ctr);
+        ws[ec(R, C_REQ+i)] = cell(Math.ceil(req) || '',          fill, fonts.blkNorm, aligns.ctr);
       });
 
-      totForecast += rowForecast;
-      totRequired += rowRequired;
-      ws[ec(R, TOT_COL)]  = cell(Math.round(rowForecast) || 0, fill, C.blkBold, C.ctr);
-      ws[ec(R, REQ_COL)]  = cell(Math.round(rowRequired) || 0, fill, C.blkBold, C.ctr);
-      ws[ec(R, NOTE_COL)] = cell(rec.notes || '', fill, C.blkNorm, C.lft);
+      grandForecast += rowForecast;
+      grandRequired += rowRequired;
+      ws[ec(R,C_TFORE)] = cell(Math.round(rowForecast) || 0, fill, fonts.blkBold, aligns.ctr);
+      ws[ec(R,C_TREQ)]  = cell(Math.round(rowRequired) || 0, fill, fonts.blkBold, aligns.ctr);
+
+      // Cold chain equipment
+      EQUIP_KEYS.forEach((k,i) => {
+        const v = equip[k.key];
+        ws[ec(R, C_EQUIP+i)] = cell(v && parseInt(v) > 0 ? parseInt(v) : '', fill, fonts.blkNorm, aligns.ctr);
+      });
+
+      // Stationery
+      STAT_KEYS.forEach((k,i) => {
+        const v = equip[k.key];
+        ws[ec(R, C_STAT+i)] = cell(v && parseInt(v) > 0 ? parseInt(v) : '', fill, fonts.blkNorm, aligns.ctr);
+      });
+
+      ws[ec(R,C_NOTE)] = cell(rec.notes||'', fill, fonts.blkNorm, aligns.lft);
       R++;
     });
 
     // ── Totals row ───────────────────────────────────────────────────────────
-    ws[ec(R, 0)] = cell('TOTAL  الإجمالي', C.totFill, C.whtBold, C.lft);
-    merges.push({ s:{r:R,c:0}, e:{r:R,c:VAC_START-1} });
-    for (let c = 1; c < VAC_START; c++) ws[ec(R,c)] = cell('', C.totFill, C.whtBold, C.ctr);
-    for (let c = VAC_START; c < TOTAL_COLS; c++) ws[ec(R,c)] = cell('', C.totFill, C.whtBold, C.ctr);
-    ws[ec(R, TOT_COL)] = cell(Math.round(totForecast), C.totFill, C.whtBold, C.ctr);
-    ws[ec(R, REQ_COL)] = cell(Math.round(totRequired), C.totFill, C.whtBold, C.ctr);
+    ws[ec(R,C_INFO+0)] = cell('TOTAL  الإجمالي', fills.tot, fonts.whtBold, aligns.lft);
+    merge(R, C_INFO+0, C_INFO+N_INFO-1);
+    VACCINES.forEach((v,i) => {
+      ws[ec(R, C_SOH+i)] = cell(Math.round(totSOH[i]) || '', fills.tot, fonts.whtBold, aligns.ctr);
+      ws[ec(R, C_REQ+i)] = cell(Math.ceil(totReq[i])  || '', fills.tot, fonts.whtBold, aligns.ctr);
+    });
+    ws[ec(R,C_TFORE)] = cell(Math.round(grandForecast), fills.tot, fonts.whtBold, aligns.ctr);
+    ws[ec(R,C_TREQ)]  = cell(Math.round(grandRequired), fills.tot, fonts.whtBold, aligns.ctr);
+    EQUIP_KEYS.forEach((_,i) => ws[ec(R, C_EQUIP+i)] = cell('', fills.tot, fonts.whtBold, aligns.ctr));
+    STAT_KEYS.forEach((_,i)  => ws[ec(R, C_STAT+i)]  = cell('', fills.tot, fonts.whtBold, aligns.ctr));
+    ws[ec(R,C_NOTE)] = cell('', fills.tot, fonts.whtBold, aligns.ctr);
 
     // ── Sheet settings ───────────────────────────────────────────────────────
-    ws['!ref'] = XLSX.utils.encode_range({ s:{r:0,c:0}, e:{r:R,c:TOTAL_COLS-1} });
+    ws['!ref'] = XLSX.utils.encode_range({s:{r:0,c:0}, e:{r:R,c:LAST_C}});
     ws['!merges'] = merges;
     ws['!cols'] = [
-      {wch:28}, {wch:14}, {wch:18}, {wch:11}, {wch:11},
-      ...VACCINES.map(() => ({wch:9})),
-      {wch:12}, {wch:12}, {wch:30}
+      {wch:28},{wch:13},{wch:18},{wch:10},{wch:10},  // Info
+      ...Array(N_VAC).fill({wch:8}),                  // SOH per vaccine
+      ...Array(N_VAC).fill({wch:8}),                  // Required per vaccine
+      {wch:11},{wch:11},                               // Totals
+      ...EQUIP_KEYS.map(()=>({wch:9})),               // Cold chain equip
+      ...STAT_KEYS.map(()=>({wch:9})),                // Stationery
+      {wch:30},                                        // Notes
     ];
-    ws['!rows'] = [{ hpt:22 }, { hpt:18 }, { hpt:30 }];
+    ws['!rows'] = [{hpt:22},{hpt:22},{hpt:36}];
 
     XLSX.utils.book_append_sheet(wb, ws, `Forecast ${year}`);
     XLSX.writeFile(wb, `Vaccine_Forecast_ALL_${year}.xlsx`, { cellStyles: true });
-    showToast('✓ Exported all ' + facilities.length + ' facilities');
+    showToast('✓ Exported ' + facilities.length + ' facilities');
   } catch(e) {
     console.error(e);
     showToast('⚠ Export failed: ' + e.message, 'warning');
