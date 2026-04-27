@@ -56,6 +56,19 @@ body{font-family:Arial,sans-serif;direction:ltr}
 }
 .lock-btn:hover{background:#178DB0;transform:translateY(-1px);}
 .lock-footer{color:rgba(255,255,255,.35);font-size:11px;text-align:center;}
+/* ── Edit PIN Modal ── */
+#edit-pin-modal{display:none;position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,.65);align-items:center;justify-content:center;}
+.epm-card{background:linear-gradient(135deg,#1a237e,#283593);border-radius:16px;padding:32px 28px;display:flex;flex-direction:column;align-items:center;gap:16px;box-shadow:0 8px 40px rgba(0,0,0,.6);min-width:280px;}
+.epm-title{color:#FFD700;font-size:17px;font-weight:800;text-align:center;}
+.epm-sub{color:rgba(255,255,255,.7);font-size:12px;text-align:center;}
+.epm-boxes{display:flex;gap:10px;}
+.epin-box{width:44px;height:54px;border-radius:10px;border:2px solid rgba(255,255,255,.25);background:rgba(255,255,255,.1);color:#fff;font-size:22px;font-weight:800;text-align:center;outline:none;caret-color:transparent;transition:.15s;backdrop-filter:blur(4px);}
+.epin-box:focus{border-color:#FFD700;background:rgba(255,215,0,.15);}
+.epin-box.filled{border-color:rgba(255,255,255,.6);background:rgba(255,255,255,.18);}
+#epin-error{color:#FF6B6B;font-size:12px;font-weight:700;height:16px;text-align:center;}
+#epin-error.shake{animation:shake .4s;}
+.epm-cancel{padding:8px 28px;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:8px;font-size:13px;cursor:pointer;transition:.15s;}
+.epm-cancel:hover{background:rgba(255,255,255,.25);}
 #sidebar-wrap{position:relative;display:flex;flex-shrink:0}
 #sidebar{width:280px;min-width:280px;background:#1F4E79;color:#fff;display:flex;flex-direction:column;overflow-y:auto;box-shadow:2px 0 8px rgba(0,0,0,.3);z-index:1000;transition:width .3s,min-width .3s}
 #sidebar.collapsed{width:0;min-width:0;overflow:hidden}
@@ -366,9 +379,12 @@ body{font-family:Arial,sans-serif;direction:ltr}
   <div class="section" id="section-polygon-draw">
     <h2 class="sec-hdr" onclick="toggleSection(this)">Polygon Drawing<span class="sec-arrow">▾</span></h2>
     <div class="sec-body">
+      <!-- always visible: show/refresh polygons -->
       <button id="db-polygon-btn" class="fbtn active" onclick="toggleDbPolygonLayer()">
         <span class="dot" style="background:#7E57C2"></span>Show saved polygons <span id="db-polygon-badge">0</span>
       </button>
+      <!-- edit-only tools hidden in view-only mode -->
+      <div id="polygon-draw-tools">
       <input class="ap-input" id="poly-name" type="text" placeholder="Polygon name" style="margin-top:8px;">
       <input class="ap-input" id="poly-editor" type="text" placeholder="Editor name" style="margin-top:8px;">
       <textarea class="ap-input" id="poly-notes" placeholder="Notes / explanation"></textarea>
@@ -404,6 +420,7 @@ body{font-family:Arial,sans-serif;direction:ltr}
       <div id="polygon-status">Click Start polygon draw, then click the map to add vertices. You can drag draft points before saving.</div>
       <div id="polygon-storage-mode">Storage mode: checking...</div>
       <input id="polygon-import-file" type="file" accept=".json,application/json" style="display:none;">
+      </div><!-- /polygon-draw-tools -->
     </div>
   </div>
 
@@ -3550,7 +3567,7 @@ const EDIT_PIN       = '841977';
 const EDIT_UNLOCK_KEY = 'gaza_map_edit_unlocked'; // sessionStorage
 
 const EDIT_ELEMENTS = [
-  'section-polygon-draw',
+  'polygon-draw-tools',   // draw/edit tools inside polygon section (show-polygons btn stays visible)
   'section-add-point',
   'population-edit-btn',
   'nbhd-edit-btn',
